@@ -7,4 +7,4 @@ export const QuestDifficulty = {
   HARD: "Hard",
 };
 
-export const navViews = ["quests", "leaderboard", "rewards", "activity"];
+export const navViews = ["quests", "rewards", "activity"];

@@ -16,7 +16,9 @@ import {
   Check,
   CirclePause,
   Clock3,
+  Pencil,
   Play,
+  RotateCcw,
   Timer,
   Trash2,
 } from "lucide-react";
@@ -39,132 +41,219 @@ const formatDuration = (totalSeconds = 0) => {
 };
 
 export default function QuestCard({
-  quest,
-  onClaim,
+  task,
+  isParent,
+  currentChild,
+  assignedName,
+  onEdit,
+  onDelete,
+  onAssign,
+  onPick,
+  onStart,
   onPause,
   onResume,
   onMidway,
   onComplete,
-  onDelete,
+  onReactivate,
 }) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const isCompleted = quest.status === "completed";
-  const isRunning = quest.status === "inProgress";
-  const canResume = quest.status === "paused" || quest.status === "midway";
+  const isCompleted = task.status === "completed";
+  const isRunning = task.status === "inProgress";
+  const canResume = task.status === "paused" || task.status === "midway";
+  const isAssignedToCurrentChild = task.assignedTo === currentChild?.id;
+  const isAssignedToParent = task.assignedTo === "parent";
+  const canSelfAssign =
+    !isParent &&
+    !isCompleted &&
+    !task.adultOnly &&
+    (!task.assignedTo || isAssignedToCurrentChild);
+  const needsAssignment =
+    canSelfAssign && !task.assignedTo && task.status === "pending";
+  const canStart =
+    (isParent && isAssignedToParent && task.status === "assigned") ||
+    (!isParent &&
+      isAssignedToCurrentChild &&
+      (task.status === "pending" || task.status === "assigned"));
+  const canParentPick =
+    isParent && !isCompleted && task.status === "pending" && !task.assignedTo;
+  const canControlTask =
+    !isCompleted &&
+    ((isParent && isAssignedToParent) ||
+      (!isParent && isAssignedToCurrentChild));
 
   return (
     <>
       <Card padding={14}>
         <Stack spacing={1.25}>
-          <Box
-            sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
             <Box sx={{ minWidth: 0 }}>
               <Typography
                 variant='caption'
                 sx={{ letterSpacing: 1.5, color: "#6b7280" }}>
-                QUEST
+                {isParent ? "TASK" : "TASK"}
               </Typography>
-              <Typography
-                variant='h6'
-                sx={{
-                  color: "#1f2937",
-                  mt: 0.25,
-                  fontSize: 18,
-                  lineHeight: 1.3,
-                  overflowWrap: "anywhere",
-                }}>
-                {quest.title}
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                {task.adultOnly && !isParent && (
+                  <Box
+                    aria-label='Adult only'
+                    title='Adult only'
+                    sx={{
+                      width: 7,
+                      height: 7,
+                      flexShrink: 0,
+                      borderRadius: "50%",
+                      bgcolor: "#dc2626",
+                    }}
+                  />
+                )}
+                <Typography
+                  variant='h6'
+                  sx={{
+                    color: "#1f2937",
+                    mt: 0.25,
+                    fontSize: 18,
+                    lineHeight: 1.3,
+                    overflowWrap: "anywhere",
+                  }}>
+                  {task.title}
+                </Typography>
+              </Box>
             </Box>
-            <IconButton
-              aria-label={`Delete ${quest.title}`}
-              title='Delete quest'
-              size='small'
-              onClick={() => setIsDeleteDialogOpen(true)}
-              sx={{
-                color: "#9ca3af",
-                alignSelf: "flex-start",
-                "&:hover": { color: "#dc2626", bgcolor: "#fef2f2" },
-              }}>
-              <Trash2 size={17} />
-            </IconButton>
+            {isParent && (
+              <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+                <IconButton
+                  aria-label={`Edit ${task.title}`}
+                  title='Edit task'
+                  size='small'
+                  onClick={onEdit}
+                  sx={{
+                    color: "#615fff",
+                    "&:hover": { bgcolor: "#eef2ff" },
+                  }}>
+                  <Pencil size={16} />
+                </IconButton>
+                <IconButton
+                  aria-label={`Delete ${task.title}`}
+                  title='Delete task'
+                  size='small'
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  sx={{
+                    color: "#9ca3af",
+                    "&:hover": { color: "#dc2626", bgcolor: "#fef2f2" },
+                  }}>
+                  <Trash2 size={16} />
+                </IconButton>
+              </Box>
+            )}
           </Box>
 
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.75,
-              flexWrap: "wrap",
-            }}>
-            <Badge tone={difficultyTone[quest.difficulty] || "default"}>
-              {quest.difficulty}
-            </Badge>
-            {isRunning && <Badge tone='default'>In progress</Badge>}
-            {quest.status === "paused" && <Badge tone='default'>Paused</Badge>}
-            {quest.status === "midway" && <Badge tone='default'>Left midway</Badge>}
-            {isCompleted && <Badge tone='easy'>Completed</Badge>}
-          </Box>
+          {!isParent && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                flexWrap: "wrap",
+              }}>
+              <Badge tone={difficultyTone[task.difficulty] || "default"}>
+                {task.difficulty}
+              </Badge>
+              {task.adultOnly && <Badge tone='hard'>Adult only</Badge>}
+              {task.status === "assigned" && (
+                <Badge tone='default'>Assigned</Badge>
+              )}
+              {isRunning && <Badge tone='default'>In progress</Badge>}
+              {task.status === "paused" && <Badge tone='default'>Paused</Badge>}
+              {task.status === "midway" && (
+                <Badge tone='default'>Left midway</Badge>
+              )}
+              {isCompleted && <Badge tone='easy'>Completed</Badge>}
+            </Box>
+          )}
 
           <Typography
             variant='body2'
-            sx={{ color: "#6b7280", lineHeight: 1.5, overflowWrap: "anywhere" }}>
-            {quest.description}
+            sx={{
+              color: "#6b7280",
+              lineHeight: 1.5,
+              overflowWrap: "anywhere",
+            }}>
+            {task.description}
           </Typography>
 
-          <Stack direction='row' spacing={1}>
-            <Box
-              sx={{
-                flex: 1,
-                border: "1px solid rgba(107,114,128,0.2)",
-                borderRadius: 1,
-                bgcolor: "#f9fafb",
-                px: 1.25,
-                py: 0.75,
-              }}>
-              <Typography variant='caption' sx={{ color: "#6b7280" }}>
-                XP
-              </Typography>
-              <Typography
-                variant='body1'
-                sx={{ color: "#1f2937", fontWeight: 700, lineHeight: 1.2 }}>
-                +{quest.xpReward}
-              </Typography>
-            </Box>
-            <Box
-              sx={{
-                flex: 1,
-                border: "1px solid rgba(107,114,128,0.2)",
-                borderRadius: 1,
-                bgcolor: "#f9fafb",
-                px: 1.25,
-                py: 0.75,
-              }}>
-              <Typography variant='caption' sx={{ color: "#6b7280" }}>
-                GOLD
-              </Typography>
-              <Typography
-                variant='body1'
-                sx={{ color: "#1f2937", fontWeight: 700, lineHeight: 1.2 }}>
-                +{quest.goldReward}
-              </Typography>
-            </Box>
-          </Stack>
+          {canParentPick && (
+            <MUIButton
+            variant='contained'
+            fullWidth
+            onClick={onPick}
+            sx={{
+              bgcolor: "#615fff",
+              "&:hover": { bgcolor: "#4f46e5" },
+            }}>
+            Pick task
+            </MUIButton>
+          )}
 
-          {quest.status === "pending" && (
+          {assignedName && (
+            <Typography variant='caption' sx={{ color: "#6b7280" }}>
+              Assigned to {assignedName}
+            </Typography>
+          )}
+
+          {!isParent && (
+            <Box
+              sx={{
+                border: "1px solid rgba(107,114,128,0.2)",
+                borderRadius: 1,
+                bgcolor: "#f9fafb",
+                px: 1.25,
+                py: 0.75,
+              }}>
+              <Typography variant='caption' sx={{ color: "#6b7280" }}>
+                POINTS
+              </Typography>
+              <Typography
+                variant='body1'
+                sx={{ color: "#1f2937", fontWeight: 700, lineHeight: 1.2 }}>
+                +{task.pointsReward}
+              </Typography>
+            </Box>
+          )}
+
+          {needsAssignment && (
             <MUIButton
               variant='contained'
               fullWidth
-              onClick={onClaim}
+              onClick={onAssign}
               sx={{
                 bgcolor: "#615fff",
                 "&:hover": { bgcolor: "#4f46e5" },
               }}>
-              Claim Quest
+              Take task
             </MUIButton>
           )}
 
-          {!isCompleted && quest.status !== "pending" && (
+          {canStart && (
+            <MUIButton
+              variant='contained'
+              fullWidth
+              startIcon={<Play size={16} />}
+              onClick={onStart}
+              sx={{
+                bgcolor: "#615fff",
+                "&:hover": { bgcolor: "#4f46e5" },
+              }}>
+              Start task
+            </MUIButton>
+          )}
+
+          {!isParent && task.adultOnly && !isCompleted && (
+            <Typography variant='caption' sx={{ color: "#b91c1c" }}>
+              This task must be assigned by a parent.
+            </Typography>
+          )}
+
+          {canControlTask && !canStart && (
             <>
               {canResume && (
                 <MUIButton
@@ -176,7 +265,7 @@ export default function QuestCard({
                     bgcolor: "#615fff",
                     "&:hover": { bgcolor: "#4f46e5" },
                   }}>
-                  Resume Quest
+                  Resume task
                 </MUIButton>
               )}
               <Stack direction='row' spacing={1}>
@@ -202,10 +291,10 @@ export default function QuestCard({
                 )}
               </Stack>
               <Box
-                display='flex'
-                justifyContent='space-between'
-                alignItems='center'
                 sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                   borderTop: "1px solid rgba(107,114,128,0.16)",
                   pt: 1,
                   mt: 0.25,
@@ -224,7 +313,7 @@ export default function QuestCard({
                       color: "#4b5563",
                       fontWeight: 700,
                     }}>
-                    {formatDuration(quest.elapsedSeconds)}
+                    {formatDuration(task.elapsedSeconds)}
                   </Typography>
                 </Box>
                 {isRunning && (
@@ -241,68 +330,89 @@ export default function QuestCard({
             </>
           )}
 
+          {!isParent && task.assignedTo && !isAssignedToCurrentChild && !isCompleted && (
+            <Typography variant='caption' sx={{ color: "#6b7280" }}>
+              This task is assigned to {assignedName || "another child"}.
+            </Typography>
+          )}
+
           {isCompleted && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
               <Clock3 size={15} color='#6b7280' aria-hidden='true' />
               <Typography variant='caption' sx={{ color: "#6b7280" }}>
-                Time spent: {formatDuration(quest.elapsedSeconds)}
+                Time spent: {formatDuration(task.elapsedSeconds)}
               </Typography>
             </Box>
+          )}
+
+          {isParent && isCompleted && (
+            <MUIButton
+              variant='outlined'
+              fullWidth
+              startIcon={<RotateCcw size={16} />}
+              onClick={onReactivate}
+              sx={{ color: "#4f46e5", borderColor: "#c7d2fe" }}>
+              Reactivate task
+            </MUIButton>
           )}
         </Stack>
       </Card>
 
-      <Dialog
-        open={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        sx={{
-          "& .MuiBackdrop-root": {
-            backdropFilter: "blur(4px)",
-            bgcolor: "rgba(31,41,55,0.2)",
-          },
-        }}>
-        <DialogTitle sx={{ color: "#1f2937", fontWeight: 700 }}>
-          Delete quest?
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ color: "#6b7280" }}>
-            “{quest.title}” will be permanently removed from your quest board.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <MUIButton
-            onClick={() => setIsDeleteDialogOpen(false)}
-            sx={{ color: "#6b7280" }}>
-            Cancel
-          </MUIButton>
-          <MUIButton
-            variant='contained'
-            onClick={() => {
-              setIsDeleteDialogOpen(false);
-              onDelete();
-            }}
-            sx={{
-              bgcolor: "#dc2626",
-              "&:hover": { bgcolor: "#b91c1c" },
-            }}>
-            Delete
-          </MUIButton>
-        </DialogActions>
-      </Dialog>
+      {isParent && (
+        <Dialog
+          open={isDeleteDialogOpen}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          sx={{
+            "& .MuiBackdrop-root": {
+              backdropFilter: "blur(4px)",
+              bgcolor: "rgba(31,41,55,0.2)",
+            },
+          }}>
+          <DialogTitle sx={{ color: "#1f2937", fontWeight: 700 }}>
+            Delete task?
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ color: "#6b7280" }}>
+              “{task.title}” will be permanently removed from your task board.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <MUIButton
+              onClick={() => setIsDeleteDialogOpen(false)}
+              sx={{ color: "#6b7280" }}>
+              Cancel
+            </MUIButton>
+            <MUIButton
+              variant='contained'
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                onDelete();
+              }}
+              sx={{
+                bgcolor: "#dc2626",
+                "&:hover": { bgcolor: "#b91c1c" },
+              }}>
+              Delete
+            </MUIButton>
+          </DialogActions>
+        </Dialog>
+      )}
     </>
   );
 }
 
 QuestCard.propTypes = {
-  quest: PropTypes.shape({
+  task: PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     title: PropTypes.string.isRequired,
     description: PropTypes.string.isRequired,
     difficulty: PropTypes.oneOf(["Easy", "Medium", "Hard"]).isRequired,
-    xpReward: PropTypes.number.isRequired,
-    goldReward: PropTypes.number.isRequired,
+    pointsReward: PropTypes.number.isRequired,
+    adultOnly: PropTypes.bool.isRequired,
+    assignedTo: PropTypes.string,
     status: PropTypes.oneOf([
       "pending",
+      "assigned",
       "inProgress",
       "paused",
       "midway",
@@ -310,10 +420,20 @@ QuestCard.propTypes = {
     ]).isRequired,
     elapsedSeconds: PropTypes.number.isRequired,
   }).isRequired,
-  onClaim: PropTypes.func,
+  isParent: PropTypes.bool.isRequired,
+  currentChild: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+  }),
+  assignedName: PropTypes.string,
+  onEdit: PropTypes.func,
+  onDelete: PropTypes.func,
+  onAssign: PropTypes.func,
+  onPick: PropTypes.func,
+  onStart: PropTypes.func,
   onPause: PropTypes.func,
   onResume: PropTypes.func,
   onMidway: PropTypes.func,
   onComplete: PropTypes.func,
-  onDelete: PropTypes.func.isRequired,
+  onReactivate: PropTypes.func,
 };
