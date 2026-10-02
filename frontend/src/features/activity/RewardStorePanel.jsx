@@ -13,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Coins, Pencil, Plus } from "lucide-react";
+import { toast } from "react-toastify";
 import Card from "../../components/Card";
 
 const blankReward = { name: "", goldCost: "1" };
@@ -60,13 +61,16 @@ export default function RewardStorePanel({
       goldCost < 1
     ) {
       setFormError("Enter a reward name and a whole-number gold cost of at least 1.");
+      toast.error("Enter a reward name and a whole-number gold cost of at least 1.");
       return;
     }
     const reward = { name: form.name.trim(), goldCost };
     if (dialogReward) {
       onEditReward(dialogReward.id, reward);
+      toast.success("Reward changes saved.");
     } else {
       onAddReward(reward);
+      toast.success("Reward added to the store.");
     }
     closeDialog();
   };
@@ -190,7 +194,7 @@ export default function RewardStorePanel({
             bgcolor: "rgba(31,41,55,0.2)",
           },
         }}>
-        <Box component='form' onSubmit={submitReward}>
+        <Box component='form' onSubmit={submitReward} noValidate>
           <DialogTitle sx={{ color: "#1f2937", fontWeight: 700 }}>
             {dialogReward ? "Edit reward" : "Add reward"}
           </DialogTitle>

@@ -30,3 +30,82 @@ body {
 button {
   cursor: pointer;
 }
+
+.Toastify__toast-container {
+  width: min(390px, calc(100vw - 32px));
+  padding: 12px;
+}
+
+.Toastify__toast-container .Toastify__toast.chorewars-toast {
+  position: relative;
+  overflow: hidden;
+  min-height: 68px;
+  margin-bottom: 12px;
+  padding: 15px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #1f2937;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(14px);
+}
+
+.chorewars-toast-body {
+  padding: 2px 6px;
+  font-family: "Outfit", "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.Toastify__toast-container .Toastify__toast--success.chorewars-toast {
+  border-color: #bbf7d0;
+}
+
+.Toastify__toast-container .Toastify__toast--error.chorewars-toast {
+  border-color: #fecaca;
+}
+
+.Toastify__toast-container .Toastify__toast--info.chorewars-toast {
+  border-color: #c7d2fe;
+}
+
+.Toastify__toast-container .Toastify__toast.chorewars-toast::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  content: "";
+  background: #615fff;
+}
+
+.Toastify__toast-container .Toastify__toast--success.chorewars-toast::before {
+  background: #16a34a;
+}
+
+.Toastify__toast-container .Toastify__toast--error.chorewars-toast::before {
+  background: #dc2626;
+}
+
+.Toastify__toast-container .Toastify__toast-icon {
+  width: 21px;
+  margin-inline-end: 10px;
+}
+
+.Toastify__toast-container .chorewars-toast-progress {
+  height: 3px;
+  background: linear-gradient(90deg, #818cf8, #4f46e5);
+}
+
+@media (max-width: 480px) {
+  .Toastify__toast-container {
+    top: env(safe-area-inset-top);
+    right: 0;
+    left: 0;
+    width: 100%;
+    padding: 8px 10px;
+  }
+
+  .Toastify__toast-container .Toastify__toast.chorewars-toast {
+    margin-bottom: 8px;
+  }
+}

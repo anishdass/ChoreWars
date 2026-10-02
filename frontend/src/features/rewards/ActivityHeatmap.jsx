@@ -3,16 +3,20 @@ import PropTypes from "prop-types";
 import { Box, Stack, Typography } from "@mui/material";
 import Card from "../../components/Card";
 
-const difficultyColors = {
-  Easy: "#bbf7d0",
-  Medium: "#4ade80",
-  Hard: "#15803d",
-};
+const fallbackColors = ["#2563eb", "#db2777", "#0891b2", "#ea580c"];
+const intensityLevels = [0.28, 0.48, 0.72, 1];
 
-const difficultyOrder = {
-  Easy: 1,
-  Medium: 2,
-  Hard: 3,
+const shadeColor = (color, intensity) => {
+  const hex = color.replace("#", "");
+  const channels = [0, 2, 4].map((offset) =>
+    Number.parseInt(hex.slice(offset, offset + 2), 16),
+  );
+  const shaded = channels.map((channel) =>
+    Math.round(255 + (channel - 255) * intensity)
+      .toString(16)
+      .padStart(2, "0"),
+  );
+  return `#${shaded.join("")}`;
 };
 
 const dateKey = (date) =>
@@ -20,7 +24,10 @@ const dateKey = (date) =>
     date.getDate(),
   ).padStart(2, "0")}`;
 
-export default function ActivityHeatmap({ activity = [] }) {
+export default function ActivityHeatmap({
+  activity = [],
+  childProfiles = [],
+}) {
   const [today] = useState(() => {
     const currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
@@ -42,6 +49,12 @@ export default function ActivityHeatmap({ activity = [] }) {
     weeks.push(week);
   }
 
+  const colorByChild = new Map(
+    childProfiles.map((child, index) => [
+      child.id,
+      child.color || fallbackColors[index % fallbackColors.length],
+    ]),
+  );
   const activityByDay = new Map();
   activity.forEach((item) => {
     const completedDate = new Date(item.completedAt);
@@ -72,11 +85,13 @@ export default function ActivityHeatmap({ activity = [] }) {
     <Card>
       <Stack spacing={2}>
         <Box
-          display='flex'
-          justifyContent='space-between'
-          alignItems='flex-start'
-          gap={2}
-          flexWrap='wrap'>
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 2,
+            flexWrap: "wrap",
+          }}>
           <Box>
             <Typography variant='h6' sx={{ color: "#1f2937" }}>
               Activity
@@ -86,32 +101,41 @@ export default function ActivityHeatmap({ activity = [] }) {
               completed in the last year
             </Typography>
           </Box>
-          <Stack
-            direction='row'
-            spacing={1.5}
-            flexWrap='wrap'
-            useFlexGap
-            aria-label='Chore difficulty legend'>
-            {Object.entries(difficultyColors).map(([difficulty, color]) => (
-              <Box
-                key={difficulty}
-                display='flex'
-                alignItems='center'
-                gap={0.75}>
+          <Stack spacing={0.75} sx={{ alignItems: "flex-end" }}>
+            <Stack
+              direction='row'
+              spacing={1.5}
+              useFlexGap
+              sx={{ flexWrap: "wrap" }}
+              aria-label='Children activity colors'>
+              {childProfiles.map((child, index) => (
                 <Box
-                  aria-hidden='true'
+                  key={child.id}
                   sx={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 0.5,
-                    bgcolor: color,
-                  }}
-                />
-                <Typography variant='caption' sx={{ color: "#6b7280" }}>
-                  {difficulty}
-                </Typography>
-              </Box>
-            ))}
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.75,
+                  }}>
+                  <Box
+                    aria-hidden='true'
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 0.5,
+                      bgcolor:
+                        child.color ||
+                        fallbackColors[index % fallbackColors.length],
+                    }}
+                  />
+                  <Typography variant='caption' sx={{ color: "#6b7280" }}>
+                    {child.firstName || child.name.split(/\s+/)[0]}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+            <Typography variant='caption' sx={{ color: "#6b7280" }}>
+              Darker dots mean more chores completed that day
+            </Typography>
           </Stack>
         </Box>
 
@@ -143,8 +167,11 @@ export default function ActivityHeatmap({ activity = [] }) {
             <Box sx={{ display: "flex", gap: 1 }}>
               <Stack
                 aria-hidden='true'
-                justifyContent='space-between'
-                sx={{ width: 22, py: "1px" }}>
+                sx={{
+                  width: 22,
+                  py: "1px",
+                  justifyContent: "space-between",
+                }}>
                 {["", "Mon", "", "Wed", "", "Fri", ""].map((label, index) => (
                   <Typography
                     key={index}
@@ -167,13 +194,17 @@ export default function ActivityHeatmap({ activity = [] }) {
                 {weeks.flatMap((week) =>
                   week.map((day) => {
                     const entries = activityByDay.get(dateKey(day)) || [];
-                    const mostDifficultEntry = entries.reduce(
-                      (hardest, entry) =>
-                        (difficultyOrder[entry.difficulty] || 0) >
-                        (difficultyOrder[hardest?.difficulty] || 0)
-                          ? entry
-                          : hardest,
-                      null,
+                    const completionsByChild = new Map();
+                    entries.forEach((entry) => {
+                      const current = completionsByChild.get(entry.userId) || [];
+                      current.push(entry);
+                      completionsByChild.set(entry.userId, current);
+                    });
+                    const mostActiveChild = [...completionsByChild.entries()]
+                      .sort(([, first], [, second]) => second.length - first.length)[0];
+                    const [childId, childEntries] = mostActiveChild || [];
+                    const child = childProfiles.find(
+                      (item) => item.id === childId,
                     );
                     const dayLabel = day.toLocaleDateString(undefined, {
                       month: "long",
@@ -181,13 +212,23 @@ export default function ActivityHeatmap({ activity = [] }) {
                       year: "numeric",
                     });
                     const details = entries
-                      .map((entry) => `${entry.title} (${entry.difficulty})`)
+                      .map((entry) => {
+                        const owner = childProfiles.find(
+                          (item) => item.id === entry.userId,
+                        );
+                        return `${entry.title}${owner ? ` — ${owner.firstName || owner.name.split(/\s+/)[0]}` : ""}`;
+                      })
                       .join(", ");
                     const description = entries.length
                       ? `${dayLabel}: ${entries.length} ${
                           entries.length === 1 ? "chore" : "chores"
-                        } completed — ${details}`
+                        } completed${child ? ` — most activity by ${child.firstName || child.name.split(/\s+/)[0]}` : ""}: ${details}`
                       : `${dayLabel}: no chores completed`;
+                    const intensity = childEntries
+                      ? intensityLevels[
+                          Math.min(childEntries.length, intensityLevels.length) - 1
+                        ]
+                      : 0;
 
                     return (
                       <Box
@@ -202,10 +243,12 @@ export default function ActivityHeatmap({ activity = [] }) {
                           bgcolor:
                             day > today
                               ? "transparent"
-                              : mostDifficultEntry
-                                ? difficultyColors[
-                                    mostDifficultEntry.difficulty
-                                  ] || difficultyColors.Easy
+                              : childEntries
+                                ? shadeColor(
+                                    colorByChild.get(childId) ||
+                                      fallbackColors[0],
+                                    intensity,
+                                  )
                                 : "#f3f4f6",
                           outline:
                             day > today
@@ -235,8 +278,15 @@ ActivityHeatmap.propTypes = {
   activity: PropTypes.arrayOf(
     PropTypes.shape({
       title: PropTypes.string.isRequired,
-      difficulty: PropTypes.oneOf(["Easy", "Medium", "Hard"]).isRequired,
       completedAt: PropTypes.string.isRequired,
+      userId: PropTypes.string.isRequired,
+    }),
+  ),
+  childProfiles: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      name: PropTypes.string.isRequired,
+      color: PropTypes.string,
     }),
   ),
 };

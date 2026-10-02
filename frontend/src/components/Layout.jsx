@@ -2,6 +2,7 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import {
   AppBar,
+  Avatar,
   Box,
   Badge as MUIBadge,
   BottomNavigation,
@@ -12,6 +13,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControl,
   IconButton,
   LinearProgress,
   List,
@@ -22,7 +24,10 @@ import {
   MenuItem,
   Paper,
   Stack,
+  Select,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Toolbar,
   Typography,
 } from "@mui/material";
@@ -36,6 +41,7 @@ import {
   UserRound,
   UserPlus,
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 const navItems = [
   { id: "quests", label: "Tasks", Icon: ClipboardList },
@@ -45,15 +51,18 @@ const navItems = [
 
 export default function Layout({
   user = {
-    name: "Ava",
+    name: "Maya Sarabhai",
     role: "Parent",
     points: 0,
     gold: 245,
   },
+  householdName = "Sarabhai's",
+  userPhotoUrl = "",
   activeView = "quests",
   onViewChange = () => {},
   isParent = true,
   childProfiles = [],
+  sessionUserId = "parent",
   onSessionChange = () => {},
   onAddChild = () => {},
   notifications = [],
@@ -77,16 +86,19 @@ export default function Layout({
     event.preventDefault();
     if (!childName.trim()) {
       setChildNameError("Enter your child's name.");
+      toast.error("Enter your child's name.");
       return;
     }
     const wasAdded = onAddChild(childName);
     if (!wasAdded) {
       setChildNameError("A child with that name already exists.");
+      toast.error("A child with that name already exists.");
       return;
     }
     setChildName("");
     setChildNameError("");
     setIsAddChildOpen(false);
+    toast.success(`${childName.trim()} was added to the household.`);
   };
 
   return (
@@ -140,7 +152,7 @@ export default function Layout({
                 <Typography
                   variant='h6'
                   sx={{ fontWeight: 700, lineHeight: 1.2, color: "#1f2937" }}>
-                  Household Campaign
+                  {householdName}
                 </Typography>
               </Box>
             </Box>
@@ -210,89 +222,175 @@ export default function Layout({
                   </Paper>
                 </>
               )}
-              {isParent && (
-                <>
-                  <IconButton
-                    aria-label={`${unreadNotificationCount} unread notifications`}
-                    aria-controls={
-                      notificationAnchor ? "notifications-menu" : undefined
+              <Stack
+                direction='row'
+                spacing={0.75}
+                sx={{
+                  alignItems: "center",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 1,
+                  px: 0.75,
+                  py: 0.5,
+                  bgcolor: "#fff",
+                }}>
+                <Typography
+                  variant='caption'
+                  sx={{ color: "#6b7280", fontWeight: 600, px: 0.5 }}>
+                  Test as
+                </Typography>
+                <ToggleButtonGroup
+                  exclusive
+                  size='small'
+                  value={isParent ? "parent" : "child"}
+                  aria-label='Switch test role between parent and child'
+                  onChange={(_event, role) => {
+                    if (!role) return;
+                    if (role === "parent") {
+                      onSessionChange({ role: "parent", userId: "parent" });
+                    } else if (childProfiles.length) {
+                      const selectedChild = childProfiles.find(
+                        (child) => child.id === sessionUserId,
+                      );
+                      onSessionChange({
+                        role: "child",
+                        userId: selectedChild?.id || childProfiles[0].id,
+                      });
                     }
-                    aria-haspopup='true'
-                    onClick={(event) =>
-                      setNotificationAnchor(event.currentTarget)
-                    }
-                    sx={{
-                      width: 40,
-                      height: 40,
+                  }}
+                  sx={{
+                    "& .MuiToggleButton-root": {
+                      px: 1,
+                      py: 0.5,
+                      border: 0,
+                      borderRadius: "4px !important",
+                      color: "#4b5563",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    },
+                    "& .MuiToggleButton-root.Mui-selected": {
                       color: "#4f46e5",
-                      border: "1px solid #c7d2fe",
                       bgcolor: "#eef2ff",
-                      "&:hover": { bgcolor: "#e0e7ff" },
-                    }}>
-                    <MUIBadge
-                      color='error'
-                      variant={unreadNotificationCount ? "dot" : "standard"}
-                      badgeContent={
-                        unreadNotificationCount > 9
-                          ? "9+"
-                          : unreadNotificationCount || undefined
-                      }>
-                      <Bell size={18} />
-                    </MUIBadge>
-                  </IconButton>
-                  <Menu
-                    id='notifications-menu'
-                    anchorEl={notificationAnchor}
-                    open={Boolean(notificationAnchor)}
-                    onClose={() => setNotificationAnchor(null)}
-                    anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                    transformOrigin={{ vertical: "top", horizontal: "right" }}
-                    slotProps={{
-                      paper: {
-                        sx: {
-                          mt: 1,
-                          width: 320,
-                          maxWidth: "calc(100vw - 32px)",
-                          border: "1px solid rgba(107,114,128,0.2)",
-                          boxShadow: "0 8px 24px rgba(15,23,42,0.12)",
+                    },
+                    "& .MuiToggleButton-root.Mui-selected:hover": {
+                      bgcolor: "#e0e7ff",
+                    },
+                  }}>
+                  <ToggleButton value='parent' aria-label='Test as parent'>
+                    Parent
+                  </ToggleButton>
+                  <ToggleButton
+                    value='child'
+                    aria-label='Test as child'
+                    disabled={!childProfiles.length}>
+                    Child
+                  </ToggleButton>
+                </ToggleButtonGroup>
+                {!isParent && childProfiles.length > 1 && (
+                  <FormControl size='small' sx={{ minWidth: 88 }}>
+                    <Select
+                      native
+                      value={sessionUserId}
+                      onChange={(event) =>
+                        onSessionChange({
+                          role: "child",
+                          userId: event.target.value,
+                        })
+                      }
+                      inputProps={{ "aria-label": "Select child test profile" }}
+                      sx={{
+                        height: 30,
+                        fontSize: 12,
+                        color: "#374151",
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#e5e7eb",
                         },
-                      },
-                    }}>
-                    <Typography
-                      variant='subtitle2'
-                      sx={{ px: 2, py: 1, color: "#1f2937", fontWeight: 700 }}>
-                      Notifications
-                    </Typography>
-                    <Divider />
-                    {notifications.length ? (
-                      notifications.slice(0, 8).map((notification) => (
-                        <MenuItem
-                          key={notification.id}
-                          onClick={() =>
-                            onNotificationRead(notification.id)
-                          }
-                          sx={{
-                            whiteSpace: "normal",
-                            alignItems: "flex-start",
-                            bgcolor: notification.read ? "#fff" : "#eef2ff",
-                          }}>
-                          <Typography
-                            variant='body2'
-                            sx={{ color: "#374151", py: 0.5 }}>
-                            {notification.message}
-                          </Typography>
-                        </MenuItem>
-                      ))
-                    ) : (
+                      }}>
+                      {childProfiles.map((child) => (
+                        <option key={child.id} value={child.id}>
+                          {child.firstName || child.name.split(/\s+/)[0]}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+              </Stack>
+              <IconButton
+                aria-label={`${unreadNotificationCount} unread notifications`}
+                aria-controls={
+                  notificationAnchor ? "notifications-menu" : undefined
+                }
+                aria-haspopup='true'
+                onClick={(event) =>
+                  setNotificationAnchor(event.currentTarget)
+                }
+                sx={{
+                  width: 40,
+                  height: 40,
+                  color: "#4f46e5",
+                  border: "1px solid #c7d2fe",
+                  bgcolor: "#eef2ff",
+                  "&:hover": { bgcolor: "#e0e7ff" },
+                }}>
+                <MUIBadge
+                  color='error'
+                  variant={unreadNotificationCount ? "dot" : "standard"}
+                  badgeContent={
+                    unreadNotificationCount > 9
+                      ? "9+"
+                      : unreadNotificationCount || undefined
+                  }>
+                  <Bell size={18} />
+                </MUIBadge>
+              </IconButton>
+              <Menu
+                id='notifications-menu'
+                anchorEl={notificationAnchor}
+                open={Boolean(notificationAnchor)}
+                onClose={() => setNotificationAnchor(null)}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+                slotProps={{
+                  paper: {
+                    sx: {
+                      mt: 1,
+                      width: 320,
+                      maxWidth: "calc(100vw - 32px)",
+                      border: "1px solid rgba(107,114,128,0.2)",
+                      boxShadow: "0 8px 24px rgba(15,23,42,0.12)",
+                    },
+                  },
+                }}>
+                <Typography
+                  variant='subtitle2'
+                  sx={{ px: 2, py: 1, color: "#1f2937", fontWeight: 700 }}>
+                  Notifications
+                </Typography>
+                <Divider />
+                {notifications.length ? (
+                  notifications.slice(0, 8).map((notification) => (
+                    <MenuItem
+                      key={notification.id}
+                      onClick={() => onNotificationRead(notification.id)}
+                      sx={{
+                        whiteSpace: "normal",
+                        alignItems: "flex-start",
+                        bgcolor: notification.read ? "#fff" : "#eef2ff",
+                      }}>
                       <Typography
                         variant='body2'
-                        sx={{ px: 2, py: 1.5, color: "#6b7280" }}>
-                        No notifications yet.
+                        sx={{ color: "#374151", py: 0.5 }}>
+                        {notification.message}
                       </Typography>
-                    )}
-                  </Menu>
-                </>
-              )}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <Typography
+                    variant='body2'
+                    sx={{ px: 2, py: 1.5, color: "#6b7280" }}>
+                    No notifications yet.
+                  </Typography>
+                )}
+              </Menu>
               <IconButton
                 aria-label={`Open ${user.role} profile menu`}
                 aria-controls={isProfileMenuOpen ? "profile-menu" : undefined}
@@ -310,7 +408,19 @@ export default function Layout({
                   bgcolor: "#eef2ff",
                   "&:hover": { bgcolor: "#e0e7ff" },
                 }}>
-                <UserRound size={19} />
+                <Avatar
+                  src={userPhotoUrl || undefined}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    bgcolor: isParent
+                      ? "#eef2ff"
+                      : childProfiles.find((child) => child.id === sessionUserId)
+                          ?.color || "#eef2ff",
+                    color: "#4f46e5",
+                  }}>
+                  {!userPhotoUrl && <UserRound size={19} />}
+                </Avatar>
               </IconButton>
               <Menu
                 id='profile-menu'
@@ -337,19 +447,6 @@ export default function Layout({
                 {isParent && (
                   <>
                     <Divider />
-                    {childProfiles.map((child) => (
-                      <MenuItem
-                        key={child.id}
-                        onClick={() => {
-                          closeProfileMenu();
-                          onSessionChange({ role: "child", userId: child.id });
-                        }}>
-                        <ListItemIcon sx={{ color: "#615fff", minWidth: 34 }}>
-                          <UserRound size={17} />
-                        </ListItemIcon>
-                        Switch to {child.name}
-                      </MenuItem>
-                    ))}
                     <MenuItem
                       onClick={() => {
                         closeProfileMenu();
@@ -362,20 +459,12 @@ export default function Layout({
                     </MenuItem>
                   </>
                 )}
-                {!isParent && (
-                  <MenuItem
-                    onClick={() => {
-                      closeProfileMenu();
-                      onSessionChange({ role: "parent", userId: "parent" });
-                    }}>
-                    <ListItemIcon sx={{ color: "#615fff", minWidth: 34 }}>
-                      <UserRound size={17} />
-                    </ListItemIcon>
-                    Return to parent
-                  </MenuItem>
-                )}
                 <Divider />
-                <MenuItem onClick={closeProfileMenu}>
+                <MenuItem
+                  onClick={() => {
+                    closeProfileMenu();
+                    onViewChange("settings");
+                  }}>
                   <ListItemIcon sx={{ color: "#615fff", minWidth: 34 }}>
                     <Settings size={17} />
                   </ListItemIcon>
@@ -475,7 +564,7 @@ export default function Layout({
         }}
         fullWidth
         maxWidth='xs'>
-        <Box component='form' onSubmit={submitChild}>
+        <Box component='form' onSubmit={submitChild} noValidate>
           <DialogTitle sx={{ color: "#1f2937", fontWeight: 700 }}>
             Add a child
           </DialogTitle>
@@ -524,15 +613,19 @@ Layout.propTypes = {
     pointsToNextGold: PropTypes.number,
     gold: PropTypes.number,
   }),
-  activeView: PropTypes.oneOf(["quests", "rewards", "activity"]),
+  householdName: PropTypes.string,
+  userPhotoUrl: PropTypes.string,
+  activeView: PropTypes.oneOf(["quests", "rewards", "activity", "settings"]),
   onViewChange: PropTypes.func,
   isParent: PropTypes.bool,
   childProfiles: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,
       name: PropTypes.string.isRequired,
+      photoUrl: PropTypes.string,
     }),
   ),
+  sessionUserId: PropTypes.string,
   onSessionChange: PropTypes.func,
   onAddChild: PropTypes.func,
   notifications: PropTypes.arrayOf(

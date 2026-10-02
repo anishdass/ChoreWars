@@ -18,7 +18,8 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { ClipboardList, Coins, Plus, Sparkles, UserRound } from "lucide-react";
+import { Check, Coins, Home, Pencil, Plus, Sparkles, UserRound, X } from "lucide-react";
+import { toast } from "react-toastify";
 import Card from "../../components/Card";
 import QuestCard from "./QuestCard";
 
@@ -33,6 +34,8 @@ const emptyForm = {
 
 export default function QuestBoardPanel({
   isParent,
+  householdName,
+  onSaveHouseholdName,
   currentChild,
   childList,
   pointsToNextGold,
@@ -49,6 +52,8 @@ export default function QuestBoardPanel({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const [isEditingHouseholdName, setIsEditingHouseholdName] = useState(false);
+  const [householdNameDraft, setHouseholdNameDraft] = useState(householdName);
   const activeTasks = tasks.filter((task) => task.status !== "completed");
   const archivedTasks = tasks.filter((task) => task.status === "completed");
   const pendingCount = isParent
@@ -109,6 +114,9 @@ export default function QuestBoardPanel({
       setFormError(
         "Enter a task name, description, and non-negative whole-number points.",
       );
+      toast.error(
+        "Add a task name, description, and valid non-negative points.",
+      );
       return;
     }
     const details = {
@@ -121,14 +129,34 @@ export default function QuestBoardPanel({
     };
     if (dialogTask) {
       onEditTask(dialogTask.id, details);
+      toast.success("Task changes saved.");
     } else {
       onAddTask(details);
+      toast.success("Task added to the household.");
     }
     closeDialog();
   };
 
   const personName = (childId) =>
     childList.find((child) => child.id === childId)?.name;
+
+  const saveHouseholdName = (event) => {
+    event.preventDefault();
+    const nextName = householdNameDraft.trim();
+    if (!nextName) {
+      toast.error("Enter a shared space name before saving.");
+      return;
+    }
+    onSaveHouseholdName(nextName);
+    setHouseholdNameDraft(nextName);
+    setIsEditingHouseholdName(false);
+    toast.success("Your shared space name has been saved.");
+  };
+
+  const cancelHouseholdNameEdit = () => {
+    setHouseholdNameDraft(householdName);
+    setIsEditingHouseholdName(false);
+  };
 
   return (
     <Stack spacing={2}>
@@ -152,25 +180,72 @@ export default function QuestBoardPanel({
                 color: "#4f46e5",
                 bgcolor: "#eef2ff",
               }}>
-              <ClipboardList size={20} aria-hidden='true' />
+              <Home size={20} aria-hidden='true' />
             </Box>
             <Box>
-              <Typography
-                variant='caption'
-                sx={{
-                  color: "#6b7280",
-                  letterSpacing: 1.5,
-                  textTransform: "uppercase",
-                  lineHeight: 1.2,
-                  display: "block",
-                }}>
-                {isParent ? "Task Board" : `${currentChild?.name}'s Tasks`}
-              </Typography>
-              <Typography
-                variant='h6'
-                sx={{ color: "#1f2937", fontWeight: 700 }}>
-                {isParent ? "Household tasks" : "Available quests"}
-              </Typography>
+              {isParent && isEditingHouseholdName ? (
+                <Box
+                  component='form'
+                  onSubmit={saveHouseholdName}
+                  sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <TextField
+                    autoFocus
+                    size='small'
+                    value={householdNameDraft}
+                    onChange={(event) =>
+                      setHouseholdNameDraft(event.target.value)
+                    }
+                    aria-label='Shared space name'
+                    sx={{
+                      width: { xs: 180, sm: 220 },
+                      "& .MuiOutlinedInput-root": { borderRadius: 1 },
+                    }}
+                  />
+                  <IconButton
+                    type='submit'
+                    aria-label='Save shared space name'
+                    size='small'
+                    sx={{ color: "#4f46e5" }}>
+                    <Check size={17} />
+                  </IconButton>
+                  <IconButton
+                    type='button'
+                    aria-label='Cancel shared space name edit'
+                    onClick={cancelHouseholdNameEdit}
+                    size='small'
+                    sx={{ color: "#6b7280" }}>
+                    <X size={17} />
+                  </IconButton>
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+                  <Typography
+                    variant='h6'
+                    sx={{
+                      color: "#1f2937",
+                      fontWeight: 700,
+                      display: "block",
+                    }}>
+                    {householdName}
+                  </Typography>
+                  {isParent && (
+                    <IconButton
+                      aria-label='Edit shared space name'
+                      size='small'
+                      onClick={() => {
+                        setHouseholdNameDraft(householdName);
+                        setIsEditingHouseholdName(true);
+                      }}
+                      sx={{
+                        p: 0.5,
+                        color: "#6b7280",
+                        "&:hover": { color: "#4f46e5", bgcolor: "#eef2ff" },
+                      }}>
+                      <Pencil size={13} />
+                    </IconButton>
+                  )}
+                </Box>
+              )}
             </Box>
           </Box>
           <Box
@@ -188,7 +263,7 @@ export default function QuestBoardPanel({
                 {childList.map((child, index) => (
                   <Tooltip
                     key={child.id}
-                    title={`${child.name}: ${child.gold} gold`}
+                    title={`${child.firstName || child.name.split(/\s+/)[0]}: ${child.gold} gold`}
                     arrow>
                     <Box
                       sx={{
@@ -203,15 +278,18 @@ export default function QuestBoardPanel({
                         "&:hover": { bgcolor: "#f9fafb" },
                       }}>
                       <Avatar
+                        src={child.photoUrl}
                         sx={{
                           width: 27,
                           height: 27,
-                          bgcolor: index % 2 === 0 ? "#eef2ff" : "#f5f3ff",
-                          color: "#4f46e5",
+                          bgcolor:
+                            child.color ||
+                            (index % 2 === 0 ? "#2563eb" : "#db2777"),
+                          color: "#fff",
                           fontSize: 12,
                           fontWeight: 700,
                         }}>
-                        <UserRound size={16} />
+                        {!child.photoUrl && <UserRound size={16} />}
                       </Avatar>
                       <Box
                         sx={{
@@ -424,16 +502,23 @@ export default function QuestBoardPanel({
               currentChild={currentChild}
               assignedName={personName(task.assignedTo)}
               onEdit={() => openEditDialog(task)}
-              onDelete={() => onDeleteTask(task.id)}
-              onAssign={() =>
-                onUpdateStatus(task.id, "assigned", currentChild?.id)
-              }
+              onDelete={() => {
+                onDeleteTask(task.id);
+                toast.success("Task removed.");
+              }}
+              onAssign={() => {
+                onUpdateStatus(task.id, "assigned", currentChild?.id);
+                toast.success("Task added to your list.");
+              }}
               onStart={() => onUpdateStatus(task.id, "inProgress")}
               onPause={() => onUpdateStatus(task.id, "paused")}
               onResume={() => onUpdateStatus(task.id, "inProgress")}
               onMidway={() => onUpdateStatus(task.id, "midway")}
               onComplete={() => onCompleteTask(task.id)}
-              onPick={() => onPickTask(task.id)}
+              onPick={() => {
+                onPickTask(task.id);
+                toast.success("Task assigned to you.");
+              }}
             />
           ))}
         </Box>
@@ -496,7 +581,7 @@ export default function QuestBoardPanel({
           },
         }}
         keepMounted={false}>
-        <Box component='form' onSubmit={submitTask}>
+        <Box component='form' onSubmit={submitTask} noValidate>
           <DialogTitle sx={{ color: "#1f2937", fontWeight: 700 }}>
             {dialogTask ? "Edit task" : "Add a task"}
           </DialogTitle>
@@ -575,7 +660,7 @@ export default function QuestBoardPanel({
                 <MenuItem value=''>Unassigned</MenuItem>
                 {childList.map((child) => (
                   <MenuItem key={child.id} value={child.id}>
-                    {child.name}
+                    {child.firstName || child.name.split(/\s+/)[0]}
                   </MenuItem>
                 ))}
               </TextField>
@@ -603,6 +688,8 @@ export default function QuestBoardPanel({
 
 QuestBoardPanel.propTypes = {
   isParent: PropTypes.bool.isRequired,
+  householdName: PropTypes.string.isRequired,
+  onSaveHouseholdName: PropTypes.func.isRequired,
   currentChild: PropTypes.shape({
     id: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,
@@ -612,6 +699,8 @@ QuestBoardPanel.propTypes = {
       id: PropTypes.string.isRequired,
       name: PropTypes.string.isRequired,
       gold: PropTypes.number.isRequired,
+      color: PropTypes.string,
+      photoUrl: PropTypes.string,
     }),
   ).isRequired,
   pointsToNextGold: PropTypes.number.isRequired,
