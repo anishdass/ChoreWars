@@ -36,6 +36,7 @@ import {
   ChartNoAxesColumnIncreasing,
   ClipboardList,
   Coins,
+  LogOut,
   Settings,
   ShoppingBag,
   UserRound,
@@ -56,7 +57,6 @@ export default function Layout({
     points: 0,
     gold: 245,
   },
-  householdName = "Sarabhai's",
   userPhotoUrl = "",
   activeView = "quests",
   onViewChange = () => {},
@@ -67,6 +67,7 @@ export default function Layout({
   onAddChild = () => {},
   notifications = [],
   onNotificationRead = () => {},
+  onLogout = () => {},
   children,
 }) {
   const [profileMenuAnchor, setProfileMenuAnchor] = useState(null);
@@ -126,35 +127,35 @@ export default function Layout({
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: 2,
+                gap: 1,
                 mr: "auto",
               }}>
-              <Box
+              <Typography
+                component='button'
+                type='button'
+                aria-label='Chorewars'
+                onClick={() => onViewChange("quests")}
                 sx={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  bgcolor: "#615fff",
-                  color: "#fff",
-                  fontWeight: 900,
+                  appearance: "none",
+                  border: 0,
+                  padding: 0,
+                  bgcolor: "transparent",
+                  color: "#111827",
+                  fontFamily: "'League Script', cursive",
+                  fontSize: { xs: 42, sm: 52 },
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  whiteSpace: "nowrap",
+                  cursor: "pointer",
+                  "&:hover": { color: "#000" },
+                  "&:focus-visible": {
+                    outline: "2px solid #615fff",
+                    outlineOffset: 3,
+                    borderRadius: 0.5,
+                  },
                 }}>
-                C
-              </Box>
-              <Box>
-                <Typography
-                  variant='caption'
-                  sx={{ letterSpacing: 2, color: "#6b7280" }}>
-                  CHOREWARS
-                </Typography>
-                <Typography
-                  variant='h6'
-                  sx={{ fontWeight: 700, lineHeight: 1.2, color: "#1f2937" }}>
-                  {householdName}
-                </Typography>
-              </Box>
+                Chorewars
+              </Typography>
             </Box>
 
             <Box
@@ -470,6 +471,17 @@ export default function Layout({
                   </ListItemIcon>
                   Account settings
                 </MenuItem>
+                <Divider />
+                <MenuItem
+                  onClick={() => {
+                    closeProfileMenu();
+                    onLogout();
+                  }}>
+                  <ListItemIcon sx={{ color: "#615fff", minWidth: 34 }}>
+                    <LogOut size={17} />
+                  </ListItemIcon>
+                  Sign out
+                </MenuItem>
               </Menu>
             </Box>
           </Toolbar>
@@ -613,7 +625,6 @@ Layout.propTypes = {
     pointsToNextGold: PropTypes.number,
     gold: PropTypes.number,
   }),
-  householdName: PropTypes.string,
   userPhotoUrl: PropTypes.string,
   activeView: PropTypes.oneOf(["quests", "rewards", "activity", "settings"]),
   onViewChange: PropTypes.func,
@@ -636,5 +647,6 @@ Layout.propTypes = {
     }),
   ),
   onNotificationRead: PropTypes.func,
+  onLogout: PropTypes.func,
   children: PropTypes.node,
 };

@@ -6,6 +6,7 @@ import QuestBoardPanel from "./features/quests/QuestBoardPanel";
 import RewardStorePanel from "./features/activity/RewardStorePanel";
 import ActivityHeatmap from "./features/rewards/ActivityHeatmap";
 import AccountSettings from "./features/settings/AccountSettings";
+import LoginPage from "./features/auth/LoginPage";
 
 const theme = createTheme({
   palette: {
@@ -118,6 +119,7 @@ const createNotification = (message) => ({
 });
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeView, setActiveView] = useState("quests");
   const [session, setSession] = useState({ role: "parent", userId: "parent" });
   const [children, setChildren] = useState(initialChildren);
@@ -127,6 +129,7 @@ function App() {
     username: "maya.sarabhai",
     email: "",
   });
+  const [parentPassword, setParentPassword] = useState("Thalafans1!");
   const [householdName, setHouseholdName] = useState(initialHouseholdName);
   const [parentPhotoUrl, setParentPhotoUrl] = useState("");
   const [tasks, setTasks] = useState(initialTasks);
@@ -178,6 +181,50 @@ function App() {
       0,
     ),
   }));
+
+  const loginParent = (identifier, password) => {
+    const normalizedIdentifier = identifier.trim().toLocaleLowerCase();
+    const validIdentifiers = [
+      `${parentProfile.firstName} ${parentProfile.lastName}`,
+      parentProfile.username,
+      parentProfile.email,
+    ]
+      .filter(Boolean)
+      .map((value) => value.trim().toLocaleLowerCase());
+    if (
+      password !== parentPassword ||
+      !validIdentifiers.includes(normalizedIdentifier)
+    ) {
+      return false;
+    }
+    setSession({ role: "parent", userId: "parent" });
+    setActiveView("quests");
+    setIsAuthenticated(true);
+    return true;
+  };
+
+  const registerParent = (details) => {
+    const normalizedUsername = details.username.toLocaleLowerCase();
+    if (
+      normalizedUsername === parentProfile.username.toLocaleLowerCase() ||
+      children.some(
+        (child) => child.username.toLocaleLowerCase() === normalizedUsername,
+      )
+    ) {
+      return false;
+    }
+    setParentProfile({
+      firstName: details.firstName,
+      lastName: details.lastName,
+      username: details.username,
+      email: details.email,
+    });
+    setParentPassword(details.password);
+    setSession({ role: "parent", userId: "parent" });
+    setActiveView("quests");
+    setIsAuthenticated(true);
+    return true;
+  };
 
   const hasRunningTask = tasks.some((task) => task.status === "inProgress");
 
@@ -572,24 +619,39 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Layout
-        user={user}
-        householdName={householdName}
-        userPhotoUrl={isParent ? parentPhotoUrl : currentChild?.photoUrl || ""}
-        activeView={activeView}
-        onViewChange={setActiveView}
-        isParent={isParent}
-        childProfiles={childProfiles}
-        sessionUserId={session.userId}
-        onSessionChange={(nextSession) => {
-          setSession(nextSession);
-          setActiveView("quests");
-        }}
-        onAddChild={addChild}
-        notifications={notifications}
-        onNotificationRead={markNotificationRead}>
-        {renderView()}
-      </Layout>
+      {isAuthenticated ? (
+        <Layout
+          user={user}
+          userPhotoUrl={isParent ? parentPhotoUrl : currentChild?.photoUrl || ""}
+          activeView={activeView}
+          onViewChange={setActiveView}
+          isParent={isParent}
+          childProfiles={childProfiles}
+          sessionUserId={session.userId}
+          onSessionChange={(nextSession) => {
+            setSession(nextSession);
+            setActiveView("quests");
+          }}
+          onAddChild={addChild}
+          notifications={notifications}
+          onNotificationRead={markNotificationRead}
+          onLogout={() => {
+            setIsAuthenticated(false);
+            setSession({ role: "parent", userId: "parent" });
+            setActiveView("quests");
+          }}>
+          {renderView()}
+        </Layout>
+      ) : (
+        <LoginPage
+          onLogin={loginParent}
+          onRegister={registerParent}
+          takenUsernames={[
+            parentProfile.username,
+            ...children.map((child) => child.username),
+          ]}
+        />
+      )}
       <ToastContainer
         position='top-right'
         autoClose={3600}
