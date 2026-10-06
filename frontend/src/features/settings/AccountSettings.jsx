@@ -857,7 +857,7 @@ export default function AccountSettings({
                   ) : (
                     <ReadOnlyField
                       label='Shared space name'
-                      value={householdName}
+                      value={householdName || "No space yet"}
                     />
                   )}
                   {isEditingHousehold && (

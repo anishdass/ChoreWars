@@ -28,6 +28,7 @@ import {
   Pencil,
   Plus,
   Sparkles,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
@@ -63,6 +64,7 @@ export default function QuestBoardPanel({
   isParent,
   householdName,
   onSaveHouseholdName,
+  onDeleteSpace,
   currentChild,
   childList,
   pointsToNextGold,
@@ -79,6 +81,10 @@ export default function QuestBoardPanel({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const [isAddSpaceOpen, setIsAddSpaceOpen] = useState(false);
+  const [newSpaceName, setNewSpaceName] = useState("");
+  const [spaceError, setSpaceError] = useState("");
+  const [isDeleteSpaceOpen, setIsDeleteSpaceOpen] = useState(false);
   const scheduleDateInputRef = useRef(null);
   const [isEditingHouseholdName, setIsEditingHouseholdName] = useState(false);
   const [householdNameDraft, setHouseholdNameDraft] = useState(householdName);
@@ -221,6 +227,25 @@ export default function QuestBoardPanel({
     setIsEditingHouseholdName(false);
   };
 
+  const closeAddSpaceDialog = () => {
+    setIsAddSpaceOpen(false);
+    setNewSpaceName("");
+    setSpaceError("");
+  };
+
+  const createSpace = (event) => {
+    event.preventDefault();
+    const name = newSpaceName.trim();
+    if (!name) {
+      setSpaceError("Enter a name for your space.");
+      toast.error("Enter a name for your space.");
+      return;
+    }
+    onSaveHouseholdName(name);
+    closeAddSpaceDialog();
+    toast.success(`${name} space created.`);
+  };
+
   return (
     <Stack spacing={2}>
       <Card padding={16}>
@@ -246,7 +271,13 @@ export default function QuestBoardPanel({
               <Home size={20} aria-hidden='true' />
             </Box>
             <Box>
-              {isParent && isEditingHouseholdName ? (
+              {isParent && !householdName ? (
+                <Typography
+                  variant='h6'
+                  sx={{ color: "#1f2937", fontWeight: 700 }}>
+                  No space yet
+                </Typography>
+              ) : isParent && isEditingHouseholdName ? (
                 <Box
                   component='form'
                   onSubmit={saveHouseholdName}
@@ -292,20 +323,34 @@ export default function QuestBoardPanel({
                     {householdName}
                   </Typography>
                   {isParent && (
-                    <IconButton
-                      aria-label='Edit shared space name'
-                      size='small'
-                      onClick={() => {
-                        setHouseholdNameDraft(householdName);
-                        setIsEditingHouseholdName(true);
-                      }}
-                      sx={{
-                        p: 0.5,
-                        color: "#6b7280",
-                        "&:hover": { color: "#4f46e5", bgcolor: "#eef2ff" },
-                      }}>
-                      <Pencil size={13} />
-                    </IconButton>
+                    <>
+                      <IconButton
+                        aria-label='Edit shared space name'
+                        size='small'
+                        onClick={() => {
+                          setHouseholdNameDraft(householdName);
+                          setIsEditingHouseholdName(true);
+                        }}
+                        sx={{
+                          p: 0.5,
+                          color: "#6b7280",
+                          "&:hover": { color: "#4f46e5", bgcolor: "#eef2ff" },
+                        }}>
+                        <Pencil size={13} />
+                      </IconButton>
+                      <IconButton
+                        aria-label='Delete space'
+                        title='Delete space'
+                        size='small'
+                        onClick={() => setIsDeleteSpaceOpen(true)}
+                        sx={{
+                          p: 0.5,
+                          color: "#9ca3af",
+                          "&:hover": { color: "#dc2626", bgcolor: "#fef2f2" },
+                        }}>
+                        <Trash2 size={15} />
+                      </IconButton>
+                    </>
                   )}
                 </Box>
               )}
@@ -319,7 +364,7 @@ export default function QuestBoardPanel({
               gap: 1,
               flexWrap: "wrap",
             }}>
-            {isParent && childList.length > 0 && (
+            {householdName && isParent && childList.length > 0 && (
               <Box
                 aria-label='Children and their available gold'
                 sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
@@ -374,21 +419,23 @@ export default function QuestBoardPanel({
                 ))}
               </Box>
             )}
-            <Box
-              sx={{
-                border: "1px solid #c7d2fe",
-                bgcolor: "#eef2ff",
-                borderRadius: 1,
-                px: 1.5,
-                py: 0.75,
-                color: "#4f46e5",
-                fontSize: 13,
-                fontWeight: 700,
-                whiteSpace: "nowrap",
-              }}>
-              {pendingCount} {pendingCount === 1 ? "task" : "tasks"} pending
-            </Box>
-            {isParent && (
+            {householdName && (
+              <Box
+                sx={{
+                  border: "1px solid #c7d2fe",
+                  bgcolor: "#eef2ff",
+                  borderRadius: 1,
+                  px: 1.5,
+                  py: 0.75,
+                  color: "#4f46e5",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                }}>
+                {pendingCount} {pendingCount === 1 ? "task" : "tasks"} pending
+              </Box>
+            )}
+            {isParent && householdName && (
               <IconButton
                 aria-label='Add task'
                 title='Add task'
@@ -408,7 +455,32 @@ export default function QuestBoardPanel({
         </Box>
       </Card>
 
-      {!isParent && (
+      {!householdName ? (
+        <Card padding={24}>
+          <Stack spacing={1} sx={{ alignItems: "flex-start" }}>
+            <Typography variant='h6' sx={{ color: "#1f2937", fontWeight: 700 }}>
+              Create a space to get started
+            </Typography>
+            <Typography variant='body2' sx={{ color: "#6b7280" }}>
+              A space keeps your household tasks, rewards, and child profiles
+              together.
+            </Typography>
+            {isParent && (
+              <Button
+                variant='contained'
+                startIcon={<Plus size={17} />}
+                onClick={() => setIsAddSpaceOpen(true)}
+                sx={{
+                  mt: 1,
+                  bgcolor: "#615fff",
+                  "&:hover": { bgcolor: "#4f46e5" },
+                }}>
+                Add space
+              </Button>
+            )}
+          </Stack>
+        </Card>
+      ) : !isParent && (
         <Box
           sx={{
             display: "grid",
@@ -545,7 +617,7 @@ export default function QuestBoardPanel({
         </Box>
       )}
 
-      {activeTasks.length > 0 ? (
+      {householdName && activeTasks.length > 0 ? (
         <Box
           sx={{
             display: "grid",
@@ -589,7 +661,7 @@ export default function QuestBoardPanel({
             />
           ))}
         </Box>
-      ) : (
+      ) : householdName ? (
         <Card padding={16}>
           <Typography variant='body2' sx={{ color: "#6b7280" }}>
             {isParent
@@ -597,9 +669,9 @@ export default function QuestBoardPanel({
               : "There are no active tasks right now."}
           </Typography>
         </Card>
-      )}
+      ) : null}
 
-      {archivedTasks.length > 0 && (
+      {householdName && archivedTasks.length > 0 && (
         <Stack spacing={1.5}>
           <Box>
             <Typography variant='h6' sx={{ color: "#1f2937", fontWeight: 700 }}>
@@ -886,6 +958,81 @@ export default function QuestBoardPanel({
           </DialogActions>
         </Box>
       </Dialog>
+      <Dialog
+        open={isParent && isAddSpaceOpen}
+        onClose={closeAddSpaceDialog}
+        fullWidth
+        maxWidth='xs'>
+        <Box component='form' onSubmit={createSpace} noValidate>
+          <DialogTitle sx={{ color: "#1f2937", fontWeight: 700 }}>
+            Add a space
+          </DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <Typography variant='body2' sx={{ color: "#6b7280" }}>
+                Give your household space a name. You can add tasks to it next.
+              </Typography>
+              <TextField
+                autoFocus
+                required
+                fullWidth
+                label='Space name'
+                value={newSpaceName}
+                onChange={(event) => {
+                  setNewSpaceName(event.target.value);
+                  setSpaceError("");
+                }}
+                error={Boolean(spaceError)}
+                helperText={spaceError}
+                slotProps={{ htmlInput: { maxLength: 80 } }}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={closeAddSpaceDialog} sx={{ color: "#6b7280" }}>
+              Cancel
+            </Button>
+            <Button
+              type='submit'
+              variant='contained'
+              sx={{ bgcolor: "#615fff", "&:hover": { bgcolor: "#4f46e5" } }}>
+              Add space
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+      <Dialog
+        open={isParent && isDeleteSpaceOpen}
+        onClose={() => setIsDeleteSpaceOpen(false)}
+        fullWidth
+        maxWidth='xs'>
+        <DialogTitle sx={{ color: "#1f2937", fontWeight: 700 }}>
+          Delete {householdName}?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant='body2' sx={{ color: "#6b7280" }}>
+            This permanently deletes the space and all its tasks, rewards, child
+            profiles, and activity history. You can create a new space later.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setIsDeleteSpaceOpen(false)}
+            sx={{ color: "#6b7280" }}>
+            Cancel
+          </Button>
+          <Button
+            color='error'
+            variant='contained'
+            onClick={() => {
+              onDeleteSpace();
+              setIsDeleteSpaceOpen(false);
+              toast.success("Space and its contents deleted.");
+            }}>
+            Delete space
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
@@ -894,6 +1041,7 @@ QuestBoardPanel.propTypes = {
   isParent: PropTypes.bool.isRequired,
   householdName: PropTypes.string.isRequired,
   onSaveHouseholdName: PropTypes.func.isRequired,
+  onDeleteSpace: PropTypes.func.isRequired,
   currentChild: PropTypes.shape({
     id: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,

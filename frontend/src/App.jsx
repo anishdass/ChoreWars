@@ -283,6 +283,13 @@ function App() {
       email: details.email,
     });
     setParentPassword(details.password);
+    setHouseholdName(null);
+    setChildren([]);
+    setTasks([]);
+    setRewards([]);
+    setCompletedTasks([]);
+    setNotifications([]);
+    setParentPhotoUrl("");
     setSession({ role: "parent", userId: "parent" });
     setActiveView("quests");
     setIsAuthenticated(true);
@@ -308,7 +315,7 @@ function App() {
   }, [hasRunningTask]);
 
   const addTask = (details) => {
-    if (!isParent) return;
+    if (!isParent || !householdName) return;
     setTasks((currentTasks) => [
       ...currentTasks,
       {
@@ -322,7 +329,7 @@ function App() {
   };
 
   const editTask = (taskId, details) => {
-    if (!isParent) return;
+    if (!isParent || !householdName) return;
     setTasks((currentTasks) =>
       currentTasks.map((task) =>
         task.id === taskId ? { ...task, ...details } : task,
@@ -480,7 +487,7 @@ function App() {
   };
 
   const addChild = (name) => {
-    if (!isParent) return false;
+    if (!isParent || !householdName) return false;
     const normalizedName = name.trim();
     if (
       !normalizedName ||
@@ -564,7 +571,7 @@ function App() {
   };
 
   const addReward = (details) => {
-    if (!isParent) return;
+    if (!isParent || !householdName) return;
     setRewards((currentRewards) => [
       ...currentRewards,
       { ...details, id: `${Date.now()}-${Math.random()}` },
@@ -572,7 +579,7 @@ function App() {
   };
 
   const editReward = (rewardId, details) => {
-    if (!isParent) return;
+    if (!isParent || !householdName) return;
     setRewards((currentRewards) =>
       currentRewards.map((reward) =>
         reward.id === rewardId ? { ...reward, ...details } : reward,
@@ -581,10 +588,22 @@ function App() {
   };
 
   const deleteReward = (rewardId) => {
-    if (!isParent) return;
+    if (!isParent || !householdName) return;
     setRewards((currentRewards) =>
       currentRewards.filter((reward) => reward.id !== rewardId),
     );
+  };
+
+  const deleteSpace = () => {
+    if (!isParent || !householdName) return;
+    setHouseholdName(null);
+    setChildren([]);
+    setTasks([]);
+    setRewards([]);
+    setCompletedTasks([]);
+    setNotifications([]);
+    setSession({ role: "parent", userId: "parent" });
+    setActiveView("quests");
   };
 
   const redeemReward = (rewardId) => {
@@ -644,10 +663,12 @@ function App() {
             email={parentProfile.email}
             userPhotoUrl={isParent ? parentPhotoUrl : currentChild?.photoUrl}
             currentChildPhotoUrl={currentChild?.photoUrl || ""}
-            householdName={householdName}
+            householdName={householdName || ""}
             childProfiles={childProfiles}
             isParent={isParent}
-            onSaveHouseholdName={setHouseholdName}
+            onSaveHouseholdName={(name) => {
+              if (isParent) setHouseholdName(name);
+            }}
             onAddChild={addChild}
             onRemoveChild={removeChild}
             onUpdateChildPhoto={updateChildPhoto}
@@ -696,8 +717,9 @@ function App() {
         return (
           <QuestBoardPanel
             isParent={isParent}
-            householdName={householdName}
+            householdName={householdName || ""}
             onSaveHouseholdName={setHouseholdName}
+            onDeleteSpace={deleteSpace}
             currentChild={currentChild}
             childList={childProfiles}
             pointsToNextGold={pointsToNextGold}
@@ -730,6 +752,7 @@ function App() {
           activeView={activeView}
           onViewChange={setActiveView}
           isParent={isParent}
+          hasSpace={Boolean(householdName)}
           childProfiles={childProfiles}
           sessionUserId={session.userId}
           onSessionChange={(nextSession) => {

@@ -61,6 +61,7 @@ export default function Layout({
   activeView = "quests",
   onViewChange = () => {},
   isParent = true,
+  hasSpace = true,
   childProfiles = [],
   sessionUserId = "parent",
   onSessionChange = () => {},
@@ -80,6 +81,9 @@ export default function Layout({
   ).length;
   const pointsToGold = user.pointsToNextGold ?? user.points % 1000;
   const goldProgress = pointsToGold / 10;
+  const visibleNavItems = hasSpace
+    ? navItems
+    : navItems.filter((item) => item.id === "quests");
   const isProfileMenuOpen = Boolean(profileMenuAnchor);
   const openProfileMenu = (event) => setProfileMenuAnchor(event.currentTarget);
   const closeProfileMenu = () => setProfileMenuAnchor(null);
@@ -447,17 +451,22 @@ export default function Layout({
                 </Typography>
                 {isParent && (
                   <>
-                    <Divider />
-                    <MenuItem
-                      onClick={() => {
-                        closeProfileMenu();
-                        setIsAddChildOpen(true);
-                      }}>
-                      <ListItemIcon sx={{ color: "#615fff", minWidth: 34 }}>
-                        <UserPlus size={17} />
-                      </ListItemIcon>
-                      Add child
-                    </MenuItem>
+                    {hasSpace && (
+                      <>
+                        <Divider />
+                        <MenuItem
+                          onClick={() => {
+                            closeProfileMenu();
+                            setIsAddChildOpen(true);
+                          }}>
+                          <ListItemIcon
+                            sx={{ color: "#615fff", minWidth: 34 }}>
+                            <UserPlus size={17} />
+                          </ListItemIcon>
+                          Add child
+                        </MenuItem>
+                      </>
+                    )}
                   </>
                 )}
                 <Divider />
@@ -506,7 +515,7 @@ export default function Layout({
               height: "fit-content",
             }}>
             <List disablePadding>
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const isActive = activeView === item.id;
                 const label = item.id === "quests" ? "Tasks" : item.label;
 
@@ -553,7 +562,7 @@ export default function Layout({
           onChange={(event, newValue) => onViewChange(newValue)}
           showLabels
           sx={{ bgcolor: "transparent" }}>
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <BottomNavigationAction
               key={item.id}
               label={item.id === "quests" ? "Tasks" : item.label}
@@ -629,6 +638,7 @@ Layout.propTypes = {
   activeView: PropTypes.oneOf(["quests", "rewards", "activity", "settings"]),
   onViewChange: PropTypes.func,
   isParent: PropTypes.bool,
+  hasSpace: PropTypes.bool,
   childProfiles: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,
