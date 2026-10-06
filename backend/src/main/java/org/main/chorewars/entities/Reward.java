@@ -14,6 +14,7 @@ import java.util.UUID;
 @Table(name = "rewards")
 public class Reward {
     @Id
+    @Column(updatable = false)
     private String rewardId;
 
     @Setter

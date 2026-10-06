@@ -9,11 +9,12 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "spaces")
 @Getter
 @NoArgsConstructor
+@Table(name = "spaces")
 public class Space {
     @Id
+    @Column(updatable = false)
     private String spaceId;
 
     @Setter

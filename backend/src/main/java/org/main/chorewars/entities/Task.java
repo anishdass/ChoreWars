@@ -11,9 +11,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "tasks")
 @Getter
 @NoArgsConstructor
+@Table(name = "tasks")
 public class Task {
     @Id
     @Column(updatable = false)

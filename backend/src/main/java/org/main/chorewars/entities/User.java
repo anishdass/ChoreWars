@@ -11,11 +11,12 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
 @Getter
 @NoArgsConstructor
+@Table(name = "users")
 public class User {
     @Id
+    @Column(updatable = false)
     private String userId;
 
     @Setter
@@ -80,3 +81,4 @@ public class User {
         this.createdAt = LocalDateTime.now();
     }
 }
+
