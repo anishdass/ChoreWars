@@ -1,6 +1,7 @@
 package org.main.chorewars.entities.enums;
 
-public enum ChoreStatus {
+public enum TaskStatus {
+    CREATED,
     PENDING,
     ASSIGNED,
     COMPLETED

@@ -1,45 +1,82 @@
 package org.main.chorewars.entities;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.main.chorewars.entities.enums.Role;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
 @Table(name = "users")
 @Getter
+@NoArgsConstructor
 public class User {
     @Id
-    private final UUID userId = UUID.randomUUID();
+    private String userId;
 
+    @Setter
     @Column(unique = true, nullable = false)
-    @NotBlank(message = "Username cannot be blank")
-    private final String username;
+    private String username;
 
-    @Column(unique = true, nullable = false)
-    @NotBlank(message = "Email cannot be blank")
-    @Email(message = "Please enter a valid email address")
-    private final String email;
+    @Setter
+    @Column(nullable = false)
+    private String password;
 
+    @Setter
+    private String displayPicture;
+
+    @Setter
+    private String firstName;
+
+    @Setter
+    private String lastName;
+
+    @Setter
+    @Column(unique = true)
+    private String email;
+
+    @Setter
     @Column(nullable = false)
     private int totalPoints;
 
-    public User(String username, String email) {
+    @Setter
+    @Column(nullable = false)
+    private int golds;
+
+    @Setter
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
+
+    @Setter
+    @OneToMany
+    @JoinColumn(name = "task_id")
+    private List<Task> assignedTasks;
+
+    @Setter
+    @ManyToOne
+    @JoinColumn(name = "space_id")
+    private Space space;
+
+    @Setter
+    @OneToMany
+    @JoinColumn(name = "reward_id")
+    private List<Reward> rewards;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    public User(String username, Space space, Role role) {
+        this.userId = "USER-" + UUID.randomUUID().toString().substring(0, 8);
         this.username = username;
-        this.email = email;
+        this.space = space;
         this.totalPoints = 0;
+        this.golds = 0;
+        this.role = role;
+        this.createdAt = LocalDateTime.now();
     }
-
-    public void addPoints(int points) {
-        if (points < 0) {
-            throw new IllegalArgumentException("Points to add cannot be negative");
-        }
-        this.totalPoints += points;
-    }
-
 }

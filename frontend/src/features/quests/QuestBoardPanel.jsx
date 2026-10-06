@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import PropTypes from "prop-types";
 import {
   Avatar,
@@ -11,14 +11,26 @@ import {
   DialogTitle,
   FormControlLabel,
   IconButton,
+  InputAdornment,
   LinearProgress,
   MenuItem,
   Stack,
+  Switch,
   TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
-import { Check, Coins, Home, Pencil, Plus, Sparkles, UserRound, X } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  Coins,
+  Home,
+  Pencil,
+  Plus,
+  Sparkles,
+  UserRound,
+  X,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import Card from "../../components/Card";
 import QuestCard from "./QuestCard";
@@ -28,9 +40,24 @@ const emptyForm = {
   description: "",
   difficulty: "Easy",
   pointsReward: "50",
-  adultOnly: false,
+  adultOnly: true,
   assignedTo: "",
+  scheduleEnabled: false,
+  scheduledDate: "",
+  repeatEnabled: false,
+  repeatFrequency: "daily",
+  repeatDays: [],
 };
+
+const weekdays = [
+  { label: "Sun", value: 0 },
+  { label: "Mon", value: 1 },
+  { label: "Tue", value: 2 },
+  { label: "Wed", value: 3 },
+  { label: "Thu", value: 4 },
+  { label: "Fri", value: 5 },
+  { label: "Sat", value: 6 },
+];
 
 export default function QuestBoardPanel({
   isParent,
@@ -52,6 +79,7 @@ export default function QuestBoardPanel({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const scheduleDateInputRef = useRef(null);
   const [isEditingHouseholdName, setIsEditingHouseholdName] = useState(false);
   const [householdNameDraft, setHouseholdNameDraft] = useState(householdName);
   const activeTasks = tasks.filter((task) => task.status !== "completed");
@@ -81,6 +109,11 @@ export default function QuestBoardPanel({
       pointsReward: String(task.pointsReward),
       adultOnly: task.adultOnly,
       assignedTo: task.assignedTo || "",
+      scheduleEnabled: Boolean(task.scheduledDate),
+      scheduledDate: task.scheduledDate || "",
+      repeatEnabled: Boolean(task.repeatEnabled),
+      repeatFrequency: task.repeatFrequency || "daily",
+      repeatDays: task.repeatDays || [],
     });
     setFormError("");
     setDialogTask(task);
@@ -102,6 +135,15 @@ export default function QuestBoardPanel({
     }));
   };
 
+  const toggleRepeatDay = (day) => {
+    setForm((currentForm) => ({
+      ...currentForm,
+      repeatDays: currentForm.repeatDays.includes(day)
+        ? currentForm.repeatDays.filter((selectedDay) => selectedDay !== day)
+        : [...currentForm.repeatDays, day].sort((a, b) => a - b),
+    }));
+  };
+
   const submitTask = (event) => {
     event.preventDefault();
     const pointsReward = Number(form.pointsReward);
@@ -109,13 +151,18 @@ export default function QuestBoardPanel({
       !form.title.trim() ||
       !form.description.trim() ||
       !Number.isInteger(pointsReward) ||
-      pointsReward < 0
+      pointsReward < 0 ||
+      (form.scheduleEnabled && !form.scheduledDate)
     ) {
       setFormError(
-        "Enter a task name, description, and non-negative whole-number points.",
+        form.scheduleEnabled && !form.scheduledDate
+          ? "Choose a date for the scheduled task."
+          : "Enter a task name, description, and non-negative whole-number points.",
       );
       toast.error(
-        "Add a task name, description, and valid non-negative points.",
+        form.scheduleEnabled && !form.scheduledDate
+          ? "Choose a date for the scheduled task."
+          : "Add a task name, description, and valid non-negative points.",
       );
       return;
     }
@@ -126,7 +173,23 @@ export default function QuestBoardPanel({
       pointsReward,
       adultOnly: form.adultOnly,
       assignedTo: form.assignedTo || null,
+      scheduledDate: form.scheduleEnabled ? form.scheduledDate : null,
+      repeatEnabled: form.repeatEnabled,
+      repeatFrequency: form.repeatEnabled ? form.repeatFrequency : null,
+      repeatDays:
+        form.repeatEnabled && form.repeatFrequency === "custom"
+          ? form.repeatDays
+          : [],
     };
+    if (
+      form.repeatEnabled &&
+      form.repeatFrequency === "custom" &&
+      form.repeatDays.length === 0
+    ) {
+      setFormError("Choose at least one day for a custom weekly repeat.");
+      toast.error("Choose at least one day for a custom weekly repeat.");
+      return;
+    }
     if (dialogTask) {
       onEditTask(dialogTask.id, details);
       toast.success("Task changes saved.");
@@ -515,6 +578,10 @@ export default function QuestBoardPanel({
               onResume={() => onUpdateStatus(task.id, "inProgress")}
               onMidway={() => onUpdateStatus(task.id, "midway")}
               onComplete={() => onCompleteTask(task.id)}
+              onQuit={() => {
+                onUpdateStatus(task.id, "pending", null);
+                toast.info("Task released for someone else to pick.");
+              }}
               onPick={() => {
                 onPickTask(task.id);
                 toast.success("Task assigned to you.");
@@ -613,57 +680,194 @@ export default function QuestBoardPanel({
                 onChange={updateForm}
                 slotProps={{ htmlInput: { maxLength: 500 } }}
               />
-              <TextField
-                select
-                fullWidth
-                name='difficulty'
-                label='Difficulty'
-                value={form.difficulty}
-                onChange={updateForm}>
-                {["Easy", "Medium", "Hard"].map((difficulty) => (
-                  <MenuItem key={difficulty} value={difficulty}>
-                    {difficulty}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                required
-                fullWidth
-                type='number'
-                name='pointsReward'
-                label='Points'
-                value={form.pointsReward}
-                onChange={updateForm}
-                slotProps={{ htmlInput: { min: 0, step: 1 } }}
-              />
               <FormControlLabel
                 control={
-                  <Checkbox
+                  <Switch
                     name='adultOnly'
                     checked={form.adultOnly}
                     onChange={updateForm}
                     sx={{
-                      color: "#615fff",
-                      "&.Mui-checked": { color: "#615fff" },
+                      "& .MuiSwitch-switchBase.Mui-checked": {
+                        color: "#615fff",
+                      },
+                      "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
+                        { bgcolor: "#615fff" },
                     }}
                   />
                 }
-                label='Adult only — children cannot take this task themselves'
+                label='Adults only'
               />
-              <TextField
-                select
-                fullWidth
-                name='assignedTo'
-                label='Assign to a child'
-                value={form.assignedTo}
-                onChange={updateForm}>
-                <MenuItem value=''>Unassigned</MenuItem>
-                {childList.map((child) => (
-                  <MenuItem key={child.id} value={child.id}>
-                    {child.firstName || child.name.split(/\s+/)[0]}
-                  </MenuItem>
-                ))}
-              </TextField>
+              {!form.adultOnly && (
+                <>
+                  <TextField
+                    select
+                    fullWidth
+                    name='difficulty'
+                    label='Difficulty'
+                    value={form.difficulty}
+                    onChange={updateForm}>
+                    {["Easy", "Medium", "Hard"].map((difficulty) => (
+                      <MenuItem key={difficulty} value={difficulty}>
+                        {difficulty}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    required
+                    fullWidth
+                    type='number'
+                    name='pointsReward'
+                    label='Points'
+                    value={form.pointsReward}
+                    onChange={updateForm}
+                    slotProps={{ htmlInput: { min: 0, step: 1 } }}
+                  />
+                </>
+              )}
+              <FormControlLabel
+                control={
+                  <Switch
+                    name='scheduleEnabled'
+                    checked={form.scheduleEnabled}
+                    onChange={updateForm}
+                    sx={{
+                      "& .MuiSwitch-switchBase.Mui-checked": {
+                        color: "#615fff",
+                      },
+                      "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
+                        { bgcolor: "#615fff" },
+                    }}
+                  />
+                }
+                label='Schedule task'
+              />
+              {form.scheduleEnabled && (
+                <TextField
+                  fullWidth
+                  required
+                  inputRef={scheduleDateInputRef}
+                  type='date'
+                  name='scheduledDate'
+                  label='Scheduled for'
+                  value={form.scheduledDate}
+                  onChange={updateForm}
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    input: {
+                      endAdornment: (
+                        <InputAdornment position='end'>
+                          <IconButton
+                            aria-label='Open task date calendar'
+                            edge='end'
+                            onClick={() => {
+                              const dateInput = scheduleDateInputRef.current;
+                              if (!dateInput) return;
+                              if (typeof dateInput.showPicker === "function") {
+                                dateInput.showPicker();
+                              } else {
+                                dateInput.focus();
+                                dateInput.click();
+                              }
+                            }}>
+                            <CalendarDays size={18} />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              )}
+              <FormControlLabel
+                control={
+                  <Switch
+                    name='repeatEnabled'
+                    checked={form.repeatEnabled}
+                    onChange={updateForm}
+                    sx={{
+                      "& .MuiSwitch-switchBase.Mui-checked": {
+                        color: "#615fff",
+                      },
+                      "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
+                        { bgcolor: "#615fff" },
+                    }}
+                  />
+                }
+                label='Repeat task'
+              />
+              {form.repeatEnabled && (
+                <TextField
+                  select
+                  fullWidth
+                  name='repeatFrequency'
+                  label='Repeat'
+                  value={form.repeatFrequency}
+                  onChange={updateForm}>
+                  {["daily", "weekly", "monthly", "custom"].map((frequency) => (
+                    <MenuItem key={frequency} value={frequency}>
+                      {frequency === "custom"
+                        ? "Custom"
+                        : frequency[0].toUpperCase() + frequency.slice(1)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+              {form.repeatEnabled && form.repeatFrequency === "custom" && (
+                <Stack spacing={1}>
+                  <Typography variant='body2' sx={{ color: "#4b5563" }}>
+                    Choose the days this task repeats each week.
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                      gap: 0.5,
+                    }}>
+                    {weekdays.map((day) => (
+                      <FormControlLabel
+                        key={day.value}
+                        control={
+                          <Checkbox
+                            checked={form.repeatDays.includes(day.value)}
+                            onChange={() => toggleRepeatDay(day.value)}
+                            sx={{
+                              color: "#615fff",
+                              "&.Mui-checked": { color: "#615fff" },
+                            }}
+                          />
+                        }
+                        label={day.label}
+                        sx={{
+                          m: 0,
+                          "& .MuiFormControlLabel-label": {
+                            fontSize: 14,
+                          },
+                        }}
+                      />
+                    ))}
+                  </Box>
+                  <Typography variant='caption' sx={{ color: "#6b7280" }}>
+                    {form.repeatDays.length
+                      ? `${form.repeatDays.length} ${form.repeatDays.length === 1 ? "day" : "days"} per week`
+                      : "Select one or more days"}
+                  </Typography>
+                </Stack>
+              )}
+              {!form.adultOnly && (
+                <TextField
+                  select
+                  fullWidth
+                  name='assignedTo'
+                  label='Assign to a child'
+                  value={form.assignedTo}
+                  onChange={updateForm}>
+                  <MenuItem value=''>Unassigned</MenuItem>
+                  {childList.map((child) => (
+                    <MenuItem key={child.id} value={child.id}>
+                      {child.firstName || child.name.split(/\s+/)[0]}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>

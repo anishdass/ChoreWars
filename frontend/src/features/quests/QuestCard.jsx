@@ -13,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import {
+  CalendarDays,
   Check,
   CirclePause,
   Clock3,
@@ -31,6 +32,8 @@ const difficultyTone = {
   Hard: "hard",
 };
 
+const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 const formatDuration = (totalSeconds = 0) => {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -38,6 +41,25 @@ const formatDuration = (totalSeconds = 0) => {
   return [hours, minutes, seconds]
     .map((part) => String(part).padStart(2, "0"))
     .join(":");
+};
+
+const formatScheduledDate = (dateString) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+  if (!year || !month || !day) return dateString;
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const getLocalDateString = () => {
+  const today = new Date();
+  return [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
 };
 
 export default function QuestCard({
@@ -54,6 +76,7 @@ export default function QuestCard({
   onResume,
   onMidway,
   onComplete,
+  onQuit,
   onReactivate,
 }) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -62,22 +85,27 @@ export default function QuestCard({
   const canResume = task.status === "paused" || task.status === "midway";
   const isAssignedToCurrentChild = task.assignedTo === currentChild?.id;
   const isAssignedToParent = task.assignedTo === "parent";
+  const isScheduledForFuture =
+    Boolean(task.scheduledDate) && task.scheduledDate > getLocalDateString();
   const canSelfAssign =
     !isParent &&
     !isCompleted &&
+    !isScheduledForFuture &&
     !task.adultOnly &&
     (!task.assignedTo || isAssignedToCurrentChild);
   const needsAssignment =
     canSelfAssign && !task.assignedTo && task.status === "pending";
   const canStart =
-    (isParent && isAssignedToParent && task.status === "assigned") ||
-    (!isParent &&
-      isAssignedToCurrentChild &&
-      (task.status === "pending" || task.status === "assigned"));
+    !isScheduledForFuture &&
+    ((isParent && isAssignedToParent && task.status === "assigned") ||
+      (!isParent &&
+        isAssignedToCurrentChild &&
+        (task.status === "pending" || task.status === "assigned")));
   const canParentPick =
     isParent && !isCompleted && task.status === "pending" && !task.assignedTo;
   const canControlTask =
     !isCompleted &&
+    !isScheduledForFuture &&
     ((isParent && isAssignedToParent) ||
       (!isParent && isAssignedToCurrentChild));
 
@@ -181,6 +209,58 @@ export default function QuestCard({
             {task.description}
           </Typography>
 
+          {(task.scheduledDate || task.repeatEnabled) && (
+            <Stack spacing={0.5}>
+              {task.scheduledDate && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.75,
+                    color: "#6b7280",
+                  }}>
+                  <CalendarDays size={14} aria-hidden='true' />
+                  <Typography variant='caption' component='span'>
+                    Scheduled for {formatScheduledDate(task.scheduledDate)}
+                  </Typography>
+                </Box>
+              )}
+              {task.repeatEnabled && task.repeatFrequency && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.75,
+                    color: "#6b7280",
+                  }}>
+                  <RotateCcw size={14} aria-hidden='true' />
+                  <Typography variant='caption' component='span'>
+                    {task.repeatFrequency === "custom"
+                      ? `Repeats ${[...new Set(task.repeatDays || [])]
+                          .filter(
+                            (day) =>
+                              Number.isInteger(day) &&
+                              day >= 0 &&
+                              day < weekdayLabels.length,
+                          )
+                          .sort((a, b) => a - b)
+                          .map((day) => weekdayLabels[day])
+                          .join(", ")} (${(task.repeatDays || []).length} ${
+                          (task.repeatDays || []).length === 1 ? "day" : "days"
+                        } per week)`
+                      : `Repeats ${task.repeatFrequency}`}
+                  </Typography>
+                </Box>
+              )}
+            </Stack>
+          )}
+
+          {!isParent && isScheduledForFuture && (
+            <Typography variant='caption' sx={{ color: "#6b7280" }}>
+              Available on {formatScheduledDate(task.scheduledDate)}
+            </Typography>
+          )}
+
           {canParentPick && (
             <MUIButton
             variant='contained'
@@ -268,18 +348,35 @@ export default function QuestCard({
                   Resume task
                 </MUIButton>
               )}
-              <Stack direction='row' spacing={1}>
-                <MUIButton
-                  variant='contained'
-                  fullWidth
-                  startIcon={<Check size={16} />}
-                  onClick={onComplete}
-                  sx={{
-                    bgcolor: "#615fff",
-                    "&:hover": { bgcolor: "#4f46e5" },
-                  }}>
-                  Completed
-                </MUIButton>
+              <Stack spacing={1}>
+                <Stack direction='row' spacing={1}>
+                  <MUIButton
+                    variant='contained'
+                    fullWidth
+                    startIcon={<Check size={16} />}
+                    onClick={onComplete}
+                    sx={{
+                      bgcolor: "#615fff",
+                      "&:hover": { bgcolor: "#4f46e5" },
+                    }}>
+                    Completed
+                  </MUIButton>
+                  <MUIButton
+                    variant='outlined'
+                    fullWidth
+                    startIcon={<RotateCcw size={16} />}
+                    onClick={onQuit}
+                    sx={{
+                      color: "#b91c1c",
+                      borderColor: "#fecaca",
+                      "&:hover": {
+                        borderColor: "#ef4444",
+                        bgcolor: "#fef2f2",
+                      },
+                    }}>
+                    Quit task
+                  </MUIButton>
+                </Stack>
                 {isRunning && (
                   <MUIButton
                     variant='outlined'
@@ -435,5 +532,6 @@ QuestCard.propTypes = {
   onResume: PropTypes.func,
   onMidway: PropTypes.func,
   onComplete: PropTypes.func,
+  onQuit: PropTypes.func,
   onReactivate: PropTypes.func,
 };

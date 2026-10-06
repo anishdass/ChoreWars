@@ -1,7 +1,9 @@
 package org.main.chorewars.entities.enums;
 
-public enum ChoreFrequency {
+public enum TaskFrequency {
+    ONCE,
     DAILY,
     WEEKLY,
-    MONTHLY
+    MONTHLY,
+    CUSTOM
 }

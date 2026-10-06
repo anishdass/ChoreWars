@@ -111,6 +111,69 @@ const initialRewards = [
 
 const initialHouseholdName = "Sarabhai's";
 
+const toLocalDateString = (date) =>
+  [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+
+const getNextRecurringDate = (scheduledDate, frequency, today, task) => {
+  const startDate = scheduledDate && scheduledDate > today ? scheduledDate : today;
+  const [year, month, day] = startDate.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    throw new Error(`Invalid recurring task date: ${startDate}`);
+  }
+
+  let nextDate = new Date(year, month - 1, day);
+  if (frequency === "daily") {
+    nextDate.setDate(nextDate.getDate() + 1);
+  } else if (frequency === "weekly") {
+    nextDate.setDate(nextDate.getDate() + 7);
+  } else if (frequency === "custom") {
+    const selectedDays = [...new Set(task.repeatDays || [])]
+      .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+      .sort((a, b) => a - b);
+    if (selectedDays.length === 0) {
+      throw new Error("Custom recurring tasks must include at least one weekday.");
+    }
+    const daysUntilNext = selectedDays
+      .map((day) => (day - nextDate.getDay() + 7) % 7 || 7)
+      .sort((a, b) => a - b)[0];
+    nextDate.setDate(nextDate.getDate() + daysUntilNext);
+  } else if (frequency === "monthly") {
+    const nextMonth = nextDate.getMonth() + 1;
+    const nextYear = nextDate.getFullYear() + Math.floor(nextMonth / 12);
+    const monthIndex = nextMonth % 12;
+    const lastDayOfMonth = new Date(nextYear, monthIndex + 1, 0).getDate();
+    nextDate = new Date(nextYear, monthIndex, Math.min(day, lastDayOfMonth));
+  } else {
+    throw new Error(`Unsupported recurring task frequency: ${frequency}`);
+  }
+
+  return toLocalDateString(nextDate);
+};
+
+const createNextRecurringTask = (task, today, id) => {
+  if (!task.repeatEnabled || !task.repeatFrequency) return null;
+
+  return {
+    ...task,
+    id,
+    scheduledDate: getNextRecurringDate(
+      task.scheduledDate,
+      task.repeatFrequency,
+      today,
+      task,
+    ),
+    status: task.assignedTo === "parent" ? "assigned" : "pending",
+    elapsedSeconds: 0,
+    completedAt: undefined,
+    completedBy: null,
+  };
+};
+
 const createNotification = (message) => ({
   id: `${Date.now()}-${Math.random()}`,
   message,
@@ -279,11 +342,17 @@ function App() {
       const parentUpdatingOwnTask =
         task.assignedTo === "parent" &&
         ["inProgress", "paused", "midway"].includes(status);
+      const parentQuittingOwnTask =
+        status === "pending" &&
+        assignedTo === null &&
+        task.assignedTo === "parent" &&
+        ["inProgress", "paused", "midway"].includes(task.status);
       const parentReactivatingTask =
         status === "pending" && task.status === "completed";
       if (
         !parentPickingUnassignedTask &&
         !parentUpdatingOwnTask &&
+        !parentQuittingOwnTask &&
         !parentReactivatingTask
       ) {
         return;
@@ -295,6 +364,12 @@ function App() {
         task.status === "pending" &&
         !task.assignedTo &&
         assignedTo === currentChild.id
+      ) {
+      } else if (
+        status === "pending" &&
+        assignedTo === null &&
+        task.assignedTo === currentChild.id &&
+        ["inProgress", "paused", "midway"].includes(task.status)
       ) {
       } else if (
         task.assignedTo !== currentChild.id ||
@@ -320,9 +395,17 @@ function App() {
   };
 
   const completeTask = (taskId) => {
-    const completedAt = new Date().toISOString();
     const completedTask = tasks.find((task) => task.id === taskId);
     if (!completedTask || completedTask.status === "completed") return;
+    // oxlint-disable-next-line react/purity -- This timestamp is created only in the completion handler.
+    const completedAt = new Date().toISOString();
+    const nextRecurringTask = completedTask.repeatEnabled
+      ? createNextRecurringTask(
+          completedTask,
+          completedAt.slice(0, 10),
+          `${completedTask.id}-${completedAt}`,
+        )
+      : null;
 
     if (isParent) {
       if (
@@ -332,11 +415,21 @@ function App() {
         return;
       }
       setTasks((currentTasks) =>
-        currentTasks.map((task) =>
-          task.id === taskId
-            ? { ...task, status: "completed", completedAt, completedBy: "parent" }
-            : task,
-        ),
+        [
+          ...currentTasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  status: "completed",
+                  completedAt,
+                  completedBy: "parent",
+                  repeatEnabled: false,
+                  repeatFrequency: null,
+                }
+              : task,
+          ),
+          ...(nextRecurringTask ? [nextRecurringTask] : []),
+        ],
       );
       return;
     }
@@ -346,18 +439,21 @@ function App() {
       !["inProgress", "paused", "midway"].includes(completedTask.status)
     ) return;
 
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
+    setTasks((currentTasks) => [
+      ...currentTasks.map((task) =>
         task.id === taskId
           ? {
               ...task,
               status: "completed",
               completedAt,
               completedBy: currentChild.id,
+              repeatEnabled: false,
+              repeatFrequency: null,
             }
           : task,
       ),
-    );
+      ...(nextRecurringTask ? [nextRecurringTask] : []),
+    ]);
     setChildren((currentChildren) =>
       currentChildren.map((child) =>
         child.id === currentChild.id
