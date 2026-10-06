@@ -580,6 +580,13 @@ function App() {
     );
   };
 
+  const deleteReward = (rewardId) => {
+    if (!isParent) return;
+    setRewards((currentRewards) =>
+      currentRewards.filter((reward) => reward.id !== rewardId),
+    );
+  };
+
   const redeemReward = (rewardId) => {
     if (isParent || !currentChild) return;
     const reward = rewards.find((item) => item.id === rewardId);
@@ -661,6 +668,7 @@ function App() {
             childGold={user.gold}
             onAddReward={addReward}
             onEditReward={editReward}
+            onDeleteReward={deleteReward}
             onRedeemReward={redeemReward}
           />
         );

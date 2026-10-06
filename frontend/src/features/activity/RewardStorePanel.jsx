@@ -6,13 +6,14 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
+  DialogContentText,
   DialogTitle,
   IconButton,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import { Coins, Pencil, Plus } from "lucide-react";
+import { Coins, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
 import Card from "../../components/Card";
 
@@ -24,9 +25,11 @@ export default function RewardStorePanel({
   childGold,
   onAddReward,
   onEditReward,
+  onDeleteReward,
   onRedeemReward,
 }) {
   const [dialogReward, setDialogReward] = useState(null);
+  const [rewardToDelete, setRewardToDelete] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState(blankReward);
   const [formError, setFormError] = useState("");
@@ -50,6 +53,13 @@ export default function RewardStorePanel({
     setDialogReward(null);
     setForm(blankReward);
     setFormError("");
+  };
+
+  const deleteReward = () => {
+    if (!rewardToDelete) return;
+    onDeleteReward(rewardToDelete.id);
+    toast.success(`${rewardToDelete.name} removed from the store.`);
+    setRewardToDelete(null);
   };
 
   const submitReward = (event) => {
@@ -162,13 +172,28 @@ export default function RewardStorePanel({
                     </Button>
                   )}
                   {isParent && (
-                    <IconButton
-                      aria-label={`Edit ${reward.name}`}
-                      title='Edit reward'
-                      onClick={() => openEditDialog(reward)}
-                      sx={{ color: "#615fff" }}>
-                      <Pencil size={17} />
-                    </IconButton>
+                    <>
+                      <IconButton
+                        aria-label={`Edit ${reward.name}`}
+                        title='Edit reward'
+                        onClick={() => openEditDialog(reward)}
+                        sx={{ color: "#615fff" }}>
+                        <Pencil size={17} />
+                      </IconButton>
+                      <IconButton
+                        aria-label={`Delete ${reward.name}`}
+                        title='Delete reward'
+                        onClick={() => setRewardToDelete(reward)}
+                        sx={{
+                          color: "#9ca3af",
+                          "&:hover": {
+                            color: "#dc2626",
+                            bgcolor: "#fef2f2",
+                          },
+                        }}>
+                        <Trash2 size={17} />
+                      </IconButton>
+                    </>
                   )}
                 </Box>
               </Box>
@@ -245,6 +270,38 @@ export default function RewardStorePanel({
           </DialogActions>
         </Box>
       </Dialog>
+      <Dialog
+        open={isParent && Boolean(rewardToDelete)}
+        onClose={() => setRewardToDelete(null)}
+        sx={{
+          "& .MuiBackdrop-root": {
+            backdropFilter: "blur(4px)",
+            bgcolor: "rgba(31,41,55,0.2)",
+          },
+        }}>
+        <DialogTitle sx={{ color: "#1f2937", fontWeight: 700 }}>
+          Delete reward?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: "#6b7280" }}>
+            Remove {rewardToDelete?.name} from the reward store? This cannot be
+            undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setRewardToDelete(null)}
+            sx={{ color: "#6b7280" }}>
+            Cancel
+          </Button>
+          <Button
+            variant='contained'
+            onClick={deleteReward}
+            sx={{ bgcolor: "#dc2626", "&:hover": { bgcolor: "#b91c1c" } }}>
+            Delete reward
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }
@@ -261,5 +318,6 @@ RewardStorePanel.propTypes = {
   childGold: PropTypes.number.isRequired,
   onAddReward: PropTypes.func.isRequired,
   onEditReward: PropTypes.func.isRequired,
+  onDeleteReward: PropTypes.func.isRequired,
   onRedeemReward: PropTypes.func.isRequired,
 };
