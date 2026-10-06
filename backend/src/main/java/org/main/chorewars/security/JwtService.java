@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -12,13 +13,13 @@ import java.util.Date;
 import java.util.function.Function;
 
 @Service
+@Slf4j
 public class JwtService {
 
-    private final String SECRET_KEY;
+    @Value("${secret.key}")
+    private String SECRET_KEY;
 
-    public JwtService(@Value("${SECRET_KEY}") String secretKey) {
-        SECRET_KEY = secretKey;
-    }
+    private static final long JWT_TOKEN_VALIDITY = 1000 * 60 * 60 * 24; // 24 hours
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
@@ -33,14 +34,19 @@ public class JwtService {
         return Jwts.builder()
                 .subject(username)
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))
+                .expiration(new Date(System.currentTimeMillis() + JWT_TOKEN_VALIDITY))
                 .signWith(getSignInKey(), Jwts.SIG.HS256)
                 .compact();
     }
 
     public boolean isTokenValid(String token, String username) {
-        final String extractedUsername = extractUsername(token);
-        return extractedUsername.equals(username) && !isTokenExpired(token);
+        try {
+            final String extractedUsername = extractUsername(token);
+            return extractedUsername.equals(username) && !isTokenExpired(token);
+        } catch (Exception e) {
+            log.warn("Token validation failed: {}", e.getMessage());
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
@@ -64,3 +70,4 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }
+

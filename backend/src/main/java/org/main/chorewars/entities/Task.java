@@ -19,8 +19,9 @@ public class Task {
     @Column(updatable = false)
     private String taskId;
 
+    @Setter
     @ManyToOne
-    @JoinColumn(name = "space_id")
+    @JoinColumn(name = "space")
     private Space space;
 
     @Setter

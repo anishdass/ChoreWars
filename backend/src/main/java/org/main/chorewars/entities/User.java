@@ -55,17 +55,21 @@ public class User {
 
     @Setter
     @OneToMany
-    @JoinColumn(name = "task_id")
+    @JoinColumn(name = "taskId")
     private List<Task> assignedTasks;
 
     @Setter
     @ManyToOne
-    @JoinColumn(name = "space_id")
+    @JoinColumn(name = "space")
     private Space space;
 
     @Setter
-    @OneToMany
-    @JoinColumn(name = "reward_id")
+    @ManyToMany
+    @JoinTable(
+            name = "user_rewards",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "reward_id")
+    )
     private List<Reward> rewards;
 
     @Column(nullable = false)

@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -26,8 +27,8 @@ public class Reward {
     private int goldsRequired;
 
     @Setter
-    @ManyToMany(mappedBy = "reward_id")
-    private User user;
+    @ManyToMany(mappedBy = "rewards")
+    private List<User> user;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
