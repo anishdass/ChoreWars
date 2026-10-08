@@ -1,12 +1,15 @@
 package org.main.chorewars.security;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -23,18 +26,20 @@ public class SecurityConfig {
         security
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/h2-console/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**", "/h2-console/**").permitAll()
                         .anyRequest().authenticated())
+                .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()))
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Allow H2 console to work
-        security.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()));
-
         return security.build();
     }
-}
 
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        // Fully ignore H2 console from Spring Security filter chain
+        return (web) -> web.ignoring().requestMatchers("/h2-console/**");
+    }
+}

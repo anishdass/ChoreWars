@@ -22,6 +22,9 @@ spring:
       enabled: true
       path: /h2-console
 
+# Run application on an alternate port to avoid conflicts
+server:
+  port: 8081
+
 secret:
   key: ${SECRET_KEY}
-
