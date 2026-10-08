@@ -40,6 +40,8 @@ public class SecurityConfig {
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         // Fully ignore H2 console from Spring Security filter chain
-        return (web) -> web.ignoring().requestMatchers("/h2-console/**");
+        // Ignoring the H2 console is not recommended; instead rely on permitAll in the HttpSecurity configuration.
+        // Keep this method returning a no-op to avoid the warning about ignoring path patterns.
+        return (web) -> { /* no-op */ };
     }
 }
